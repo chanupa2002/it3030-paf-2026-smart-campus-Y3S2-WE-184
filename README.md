@@ -1,6 +1,6 @@
 # UniNode
 
-Smart Campus Operations Hub is our paf module project
+Smart Campus Operations Hub is our y3s2 paf module project
 
 ## Supabase PostgreSQL setup (backend)
 
