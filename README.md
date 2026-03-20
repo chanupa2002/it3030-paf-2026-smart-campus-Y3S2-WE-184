@@ -1,5 +1,5 @@
 # UniNode
-Smart Campus Operations Hub is our SLIIT project
+Smart Campus Operations Hub is our project
 
 ## Supabase PostgreSQL setup (backend)
 
