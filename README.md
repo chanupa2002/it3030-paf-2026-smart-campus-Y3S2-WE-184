@@ -35,3 +35,4 @@ mvn spring-boot:run
 - Do not commit real DB passwords.
 - A starter migration file exists at:
   `backend/src/main/resources/db/migration/V1__init.sql`
+ 
