@@ -1,6 +1,7 @@
 package com.uninode.smartcampus.modules.facilities.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -58,4 +59,25 @@ public interface ResourceRepository extends JpaRepository<ResourceEntity, Long> 
             )
             """, nativeQuery = true)
     boolean existsResourceByName(@Param("name") String name);
+
+    @Query(value = """
+            SELECT EXISTS(
+                SELECT 1
+                FROM "Resource" r
+                WHERE r.id = :id
+            )
+            """, nativeQuery = true)
+    boolean existsResourceById(@Param("id") Long id);
+
+    @Query(value = """
+            SELECT
+                r.id,
+                r.type,
+                r.name,
+                r.capacity,
+                r.location
+            FROM "Resource" r
+            WHERE r.id = :id
+            """, nativeQuery = true)
+    Optional<ResourceEntity> findResourceById(@Param("id") Long id);
 }

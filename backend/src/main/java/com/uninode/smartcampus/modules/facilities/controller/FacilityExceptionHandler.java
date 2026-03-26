@@ -11,9 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.ApiErrorResponse;
 import com.uninode.smartcampus.modules.facilities.exception.ResourceAlreadyExistsException;
+import com.uninode.smartcampus.modules.facilities.exception.ResourceNotFoundException;
 
 @RestControllerAdvice(basePackages = "com.uninode.smartcampus.modules.facilities")
 public class FacilityExceptionHandler {
@@ -29,6 +31,19 @@ public class FacilityExceptionHandler {
                 ex.getMessage(),
                 request.getRequestURI());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex,
+            HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                OffsetDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,5 +74,31 @@ public class FacilityExceptionHandler {
                 "Resource violates a database constraint (possibly duplicate name).",
                 request.getRequestURI());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex,
+            HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                OffsetDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+            ResponseStatusException ex,
+            HttpServletRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                OffsetDateTime.now(),
+                ex.getStatusCode().value(),
+                ex.getStatusCode().toString(),
+                ex.getReason(),
+                request.getRequestURI());
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 }

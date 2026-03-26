@@ -10,13 +10,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
 import com.uninode.smartcampus.modules.facilities.dto.FacilityCatalogItemResponse;
+import com.uninode.smartcampus.modules.facilities.dto.UpdateResourceRequest;
 import com.uninode.smartcampus.modules.facilities.service.FacilityCatalogService;
 
 @RestController
@@ -73,5 +77,22 @@ public class FacilityCatalogController {
                 .status(HttpStatus.CREATED)
                 .cacheControl(CacheControl.noStore())
                 .body(response);
+    }
+
+    @PutMapping("/updateResource/{id}")
+    public ResponseEntity<FacilityCatalogItemResponse> updateResource(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody UpdateResourceRequest request) {
+        FacilityCatalogItemResponse response = facilityCatalogService.updateResource(id, request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @DeleteMapping("/deleteResource/{id}")
+    public ResponseEntity<Void> deleteResource(@PathVariable("id") Long id) {
+        facilityCatalogService.deleteResource(id);
+        return ResponseEntity.noContent().build();
     }
 }
