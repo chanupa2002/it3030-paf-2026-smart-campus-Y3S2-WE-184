@@ -13,7 +13,9 @@ spring:
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     open-in-view: false
     properties:
       hibernate:
@@ -30,3 +32,7 @@ spring:
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:smart-campus-demo-secret-key-2026-256bit}
+  expiration: ${JWT_EXPIRATION:86400000}
