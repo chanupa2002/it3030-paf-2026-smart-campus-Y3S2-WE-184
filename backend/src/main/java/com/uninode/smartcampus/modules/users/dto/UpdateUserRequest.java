@@ -29,8 +29,8 @@ public class UpdateUserRequest {
     private String username;
 
     @Pattern(
-            regexp = "^(?i)(Student|Lecturer|Instructor|Technician)$",
-            message = "Role name must be one of: Student, Lecturer, Instructor, Technician"
+            regexp = "^(?i)(Student|Lecturer|Instructor|Technician|Admin)$",
+            message = "Role name must be one of: Student, Lecturer, Instructor, Technician, Admin"
     )
     private String roleName;
 }

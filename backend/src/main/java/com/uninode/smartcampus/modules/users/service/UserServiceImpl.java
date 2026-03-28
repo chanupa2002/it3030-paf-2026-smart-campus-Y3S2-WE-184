@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.uninode.smartcampus.common.security.JwtUtils;
 import com.uninode.smartcampus.modules.users.dto.AuthResponse;
 import com.uninode.smartcampus.modules.users.dto.LoginRequest;
+import com.uninode.smartcampus.modules.users.dto.OAuthUpdateRequest;
 import com.uninode.smartcampus.modules.users.dto.RegisterRequest;
 import com.uninode.smartcampus.modules.users.dto.UpdateUserRequest;
 import com.uninode.smartcampus.modules.users.dto.UserResponse;
@@ -106,6 +107,38 @@ public class UserServiceImpl implements UserService {
         return AuthResponse.builder()
                 .token(token)
                 .user(toUserResponse(user))
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse oAuthUpdate(Long id, OAuthUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+
+        if (request.getName() != null) {
+            user.setName(request.getName());
+        }
+
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone());
+        }
+
+        if (request.getAddress() != null) {
+            user.setAddress(request.getAddress());
+        }
+
+        UserType userType = userTypeRepository.findByRoleNameIgnoreCase(request.getRoleName().trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid role name: " + request.getRoleName()));
+        user.setUserType(userType);
+
+        User updatedUser = userRepository.save(user);
+        String token = jwtUtils.generateToken(updatedUser);
+        log.info("Completed OAuth profile update for user id={}", updatedUser.getUserId());
+
+        return AuthResponse.builder()
+                .token(token)
+                .user(toUserResponse(updatedUser))
                 .build();
     }
 
