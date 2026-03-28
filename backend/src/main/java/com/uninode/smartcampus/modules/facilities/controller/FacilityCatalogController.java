@@ -19,7 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
+import com.uninode.smartcampus.modules.facilities.dto.DeleteResourceFromSlotRequest;
+import com.uninode.smartcampus.modules.facilities.dto.DsResourceResponse;
 import com.uninode.smartcampus.modules.facilities.dto.FacilityCatalogItemResponse;
+import com.uninode.smartcampus.modules.facilities.dto.AddResourceToSlotRequest;
 import com.uninode.smartcampus.modules.facilities.dto.UpdateResourceRequest;
 import com.uninode.smartcampus.modules.facilities.service.FacilityCatalogService;
 
@@ -93,6 +96,23 @@ public class FacilityCatalogController {
     @DeleteMapping("/deleteResource/{id}")
     public ResponseEntity<Void> deleteResource(@PathVariable("id") Long id) {
         facilityCatalogService.deleteResource(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/addresourcetoSlot")
+    public ResponseEntity<DsResourceResponse> addresourcetoSlot(
+            @Valid @RequestBody AddResourceToSlotRequest request) {
+        DsResourceResponse response = facilityCatalogService.addResourceToSlot(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @DeleteMapping("/removeResourceFromSlot")
+    public ResponseEntity<Void> deleteResourceFromSlot(
+            @Valid @RequestBody DeleteResourceFromSlotRequest request) {
+        facilityCatalogService.deleteResourceFromSlot(request);
         return ResponseEntity.noContent().build();
     }
 }

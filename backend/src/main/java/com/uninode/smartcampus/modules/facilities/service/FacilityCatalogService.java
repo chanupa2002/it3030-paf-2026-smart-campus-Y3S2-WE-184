@@ -1,12 +1,18 @@
 package com.uninode.smartcampus.modules.facilities.service;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.uninode.smartcampus.modules.facilities.dto.AddResourceToSlotRequest;
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
+import com.uninode.smartcampus.modules.facilities.dto.DeleteResourceFromSlotRequest;
+import com.uninode.smartcampus.modules.facilities.dto.DsResourceResponse;
 import com.uninode.smartcampus.modules.facilities.dto.FacilityCatalogItemResponse;
 import com.uninode.smartcampus.modules.facilities.dto.UpdateResourceRequest;
 import com.uninode.smartcampus.modules.facilities.entity.ResourceEntity;
@@ -115,6 +121,91 @@ public class FacilityCatalogService {
         int affectedRows = jdbcTemplate.update(sql, id);
         if (affectedRows == 0) {
             throw new ResourceNotFoundException("Resource not found for id: " + id);
+        }
+    }
+
+    @Transactional
+    public DsResourceResponse addResourceToSlot(AddResourceToSlotRequest request) {
+        Long slotId = request.slotId();
+        Long resourceId = request.resourceId();
+
+        Boolean slotExists = jdbcTemplate.query(
+                """
+                        SELECT EXISTS(
+                            SELECT 1 FROM "Ds_slot" s WHERE s.slot_id = ?
+                        )
+                        """,
+                rs -> rs.next() ? rs.getBoolean(1) : Boolean.FALSE,
+                slotId);
+        if (!Boolean.TRUE.equals(slotExists)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "slot_id not found: " + slotId);
+        }
+
+        String resourceType = jdbcTemplate.query(
+                """
+                        SELECT r.type
+                        FROM "Resource" r
+                        WHERE r.id = ?
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getString("type") : null,
+                resourceId);
+        if (resourceType == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "resource_id not found: " + resourceId);
+        }
+
+        String normalizedType = resourceType.trim().toLowerCase(Locale.ROOT);
+        if (!normalizedType.equals("lab") && !normalizedType.equals("lechall")) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Only resources with type 'Lab' or 'LecHall' can be added to Ds_resource.");
+        }
+
+        Boolean alreadyExists = jdbcTemplate.query(
+                """
+                        SELECT EXISTS(
+                            SELECT 1
+                            FROM "Ds_resource" dr
+                            WHERE dr.slot_id = ? AND dr.resource_id = ?
+                        )
+                        """,
+                rs -> rs.next() ? rs.getBoolean(1) : Boolean.FALSE,
+                slotId,
+                resourceId);
+        if (Boolean.TRUE.equals(alreadyExists)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This resource is already assigned to the given slot.");
+        }
+
+        return jdbcTemplate.queryForObject(
+                """
+                        INSERT INTO "Ds_resource" (slot_id, resource_id)
+                        VALUES (?, ?)
+                        RETURNING slot_id, resource_id
+                        """,
+                (rs, rowNum) -> new DsResourceResponse(
+                        rs.getLong("slot_id"),
+                        rs.getLong("resource_id")),
+                slotId,
+                resourceId);
+    }
+
+    @Transactional
+    public void deleteResourceFromSlot(DeleteResourceFromSlotRequest request) {
+        int affectedRows = jdbcTemplate.update(
+                """
+                        DELETE FROM "Ds_resource"
+                        WHERE slot_id = ? AND resource_id = ?
+                        """,
+                request.slotId(),
+                request.resourceId());
+
+        if (affectedRows == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "No Ds_resource mapping found for slot_id '" + request.slotId()
+                            + "' and resource_id '" + request.resourceId() + "'.");
         }
     }
 
