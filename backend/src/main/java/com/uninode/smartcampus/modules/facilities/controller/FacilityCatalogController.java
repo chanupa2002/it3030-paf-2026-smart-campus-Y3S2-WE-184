@@ -115,4 +115,14 @@ public class FacilityCatalogController {
         facilityCatalogService.deleteResourceFromSlot(request);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/isResourceInSlot")
+    public ResponseEntity<Boolean> isResourceInSlot(
+            @Valid @RequestBody DeleteResourceFromSlotRequest request) {
+        boolean exists = facilityCatalogService.isResourceInSlot(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(exists);
+    }
 }

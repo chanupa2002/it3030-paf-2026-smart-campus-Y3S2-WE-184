@@ -209,6 +209,22 @@ public class FacilityCatalogService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public boolean isResourceInSlot(DeleteResourceFromSlotRequest request) {
+        Boolean exists = jdbcTemplate.query(
+                """
+                        SELECT EXISTS(
+                            SELECT 1
+                            FROM "Ds_resource" dr
+                            WHERE dr.slot_id = ? AND dr.resource_id = ?
+                        )
+                        """,
+                rs -> rs.next() ? rs.getBoolean(1) : Boolean.FALSE,
+                request.slotId(),
+                request.resourceId());
+        return Boolean.TRUE.equals(exists);
+    }
+
     private List<FacilityCatalogItemResponse> toResponse(List<ResourceEntity> rows) {
         return rows.stream().map(this::toItem).toList();
     }
