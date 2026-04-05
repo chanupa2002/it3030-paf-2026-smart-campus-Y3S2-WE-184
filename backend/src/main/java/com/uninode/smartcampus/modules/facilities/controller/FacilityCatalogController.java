@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityResponse;
 import com.uninode.smartcampus.modules.facilities.dto.DeleteResourceFromSlotRequest;
 import com.uninode.smartcampus.modules.facilities.dto.DsResourceResponse;
 import com.uninode.smartcampus.modules.facilities.dto.FacilityCatalogItemResponse;
@@ -124,5 +126,15 @@ public class FacilityCatalogController {
                 .ok()
                 .cacheControl(CacheControl.noStore())
                 .body(exists);
+    }
+
+    @PostMapping("/changeResourceAvailability")
+    public ResponseEntity<ChangeResourceAvailabilityResponse> changeResourceAvailability(
+            @Valid @RequestBody ChangeResourceAvailabilityRequest request) {
+        ChangeResourceAvailabilityResponse response = facilityCatalogService.changeResourceAvailability(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
     }
 }
