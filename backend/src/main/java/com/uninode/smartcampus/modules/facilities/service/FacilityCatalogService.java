@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.AddResourceToSlotRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityResponse;
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
 import com.uninode.smartcampus.modules.facilities.dto.DeleteResourceFromSlotRequest;
 import com.uninode.smartcampus.modules.facilities.dto.DsResourceResponse;

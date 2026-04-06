@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.uninode.smartcampus.modules.facilities.dto.CreateResourceRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityRequest;
+import com.uninode.smartcampus.modules.facilities.dto.ChangeResourceAvailabilityResponse;
 import com.uninode.smartcampus.modules.facilities.dto.DeleteResourceFromSlotRequest;
 import com.uninode.smartcampus.modules.facilities.dto.DsResourceResponse;
 import com.uninode.smartcampus.modules.facilities.dto.FacilityCatalogItemResponse;

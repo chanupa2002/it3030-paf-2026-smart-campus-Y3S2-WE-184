@@ -13,7 +13,9 @@ spring:
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     open-in-view: false
     properties:
       hibernate:
@@ -27,6 +29,25 @@ spring:
   sql:
     init:
       mode: never
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google-client-id-placeholder}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-client-secret-placeholder}
+            scope:
+              - openid
+              - profile
+              - email
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:smart-campus-demo-secret-key-2026-256bit}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/callback}
