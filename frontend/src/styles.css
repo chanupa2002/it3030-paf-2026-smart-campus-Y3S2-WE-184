@@ -1412,6 +1412,11 @@ input { outline: none; }
   overflow: hidden;
 }
 
+.bookings-tabs {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  width: min(920px, 100%);
+}
+
 .book-resource-tab {
   min-height: 56px;
   padding: 0 28px;

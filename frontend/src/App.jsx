@@ -495,7 +495,9 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
   ].filter(Boolean);
   const shouldShowHero = activeSection?.id === "dashboard";
   const shouldShowResources = activeSection?.id === "comp-1";
+  const shouldShowMyBookings = activeSection?.id === "comp-2";
   const shouldShowBookResource = activeSection?.id === "comp-3";
+  const shouldShowMyTickets = activeSection?.id === "comp-4";
   const topbarLabel =
     activeSection?.id === "dashboard"
       ? getDashboardLabel(user?.roleName)
@@ -630,13 +632,19 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
               className={`dashboard-content-panel ${
                 shouldShowResources
                   ? "dashboard-content-panel-resources"
+                  : shouldShowMyBookings
+                    ? "dashboard-content-panel-book-resource"
                   : shouldShowBookResource
                     ? "dashboard-content-panel-book-resource"
+                    : shouldShowMyTickets
+                      ? "dashboard-content-panel-book-resource"
                     : "dashboard-content-empty"
               }`}
             >
               {shouldShowResources ? <ResourcesSection token={token} /> : null}
+              {shouldShowMyBookings ? <MyBookingsSection /> : null}
               {shouldShowBookResource ? <BookResourceSection /> : null}
+              {shouldShowMyTickets ? <MyTicketsSection /> : null}
             </section>
           </div>
         </div>
@@ -857,6 +865,63 @@ function ResourcesSection({ token }) {
   );
 }
 
+function MyBookingsSection() {
+  const [activeTab, setActiveTab] = useState("approved");
+  const activePanel = {
+    approved: <ApprovedBookingsPanel />,
+    pending: <PendingBookingsPanel />,
+    rejected: <RejectedBookingsPanel />,
+    cancelled: <CancelledBookingsPanel />,
+  }[activeTab];
+
+  return (
+    <div className="book-resource-shell">
+      <div className="book-resource-tabs bookings-tabs" role="tablist" aria-label="My bookings status tabs">
+        <button
+          aria-selected={activeTab === "approved"}
+          className={`book-resource-tab ${activeTab === "approved" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("approved")}
+          role="tab"
+          type="button"
+        >
+          Approved
+        </button>
+        <button
+          aria-selected={activeTab === "pending"}
+          className={`book-resource-tab ${activeTab === "pending" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("pending")}
+          role="tab"
+          type="button"
+        >
+          Pending
+        </button>
+        <button
+          aria-selected={activeTab === "rejected"}
+          className={`book-resource-tab ${activeTab === "rejected" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("rejected")}
+          role="tab"
+          type="button"
+        >
+          Rejected
+        </button>
+        <button
+          aria-selected={activeTab === "cancelled"}
+          className={`book-resource-tab ${activeTab === "cancelled" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("cancelled")}
+          role="tab"
+          type="button"
+        >
+          Cancelled
+        </button>
+      </div>
+
+      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+        {activePanel}
+      </div>
+    </div>
+  );
+}
+
 function BookResourceSection() {
   const [activeTab, setActiveTab] = useState("type");
   const activePanel = activeTab === "type" ? <BookByTypePanel /> : <BookByNamePanel />;
@@ -887,6 +952,94 @@ function BookResourceSection() {
       <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
         {activePanel}
       </div>
+    </div>
+  );
+}
+
+function MyTicketsSection() {
+  const [activeTab, setActiveTab] = useState("pending");
+  const activePanel = activeTab === "pending" ? <PendingTicketsPanel /> : <SolvedTicketsPanel />;
+
+  return (
+    <div className="book-resource-shell">
+      <div className="book-resource-tabs" role="tablist" aria-label="My tickets status tabs">
+        <button
+          aria-selected={activeTab === "pending"}
+          className={`book-resource-tab ${activeTab === "pending" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("pending")}
+          role="tab"
+          type="button"
+        >
+          Pending
+        </button>
+        <button
+          aria-selected={activeTab === "solved"}
+          className={`book-resource-tab ${activeTab === "solved" ? "book-resource-tab-active" : ""}`}
+          onClick={() => setActiveTab("solved")}
+          role="tab"
+          type="button"
+        >
+          Solved
+        </button>
+      </div>
+
+      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+        {activePanel}
+      </div>
+    </div>
+  );
+}
+
+function ApprovedBookingsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Approved Bookings</h3>
+      <p>Approved bookings display here. We can add the real approved booking content next.</p>
+    </div>
+  );
+}
+
+function PendingBookingsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Pending Bookings</h3>
+      <p>Pending bookings display here. We can add the real pending booking content next.</p>
+    </div>
+  );
+}
+
+function RejectedBookingsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Rejected Bookings</h3>
+      <p>Rejected bookings display here. We can add the real rejected booking content next.</p>
+    </div>
+  );
+}
+
+function CancelledBookingsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Cancelled Bookings</h3>
+      <p>Cancelled bookings display here. We can add the real cancelled booking content next.</p>
+    </div>
+  );
+}
+
+function PendingTicketsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Pending Tickets</h3>
+      <p>Pending tickets display here. We can add the real pending ticket content next.</p>
+    </div>
+  );
+}
+
+function SolvedTicketsPanel() {
+  return (
+    <div className="book-resource-panel-card">
+      <h3>Solved Tickets</h3>
+      <p>Solved tickets display here. We can add the real solved ticket content next.</p>
     </div>
   );
 }
