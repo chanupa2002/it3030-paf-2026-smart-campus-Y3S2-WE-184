@@ -1,5 +1,6 @@
 package com.uninode.smartcampus.modules.facilities.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 
@@ -212,87 +213,8 @@ public class FacilityCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public boolean isResourceInSlot(DeleteResourceFromSlotRequest request) {
-        Boolean exists = jdbcTemplate.query(
-                """
-                        SELECT EXISTS(
-                            SELECT 1
-                            FROM "Ds_resource" dr
-                            WHERE dr.slot_id = ? AND dr.resource_id = ?
-                        )
-                        """,
-                rs -> rs.next() ? rs.getBoolean(1) : Boolean.FALSE,
-                request.slotId(),
-                request.resourceId());
-        return Boolean.TRUE.equals(exists);
-    }
-
-    @Transactional
-    public ChangeResourceAvailabilityResponse changeResourceAvailability(ChangeResourceAvailabilityRequest request) {
-        boolean available = parseAvailableValue(request.available());
-        Long resourceId = request.resourceId();
-        String availabilityColumn = findAvailabilityColumn();
-        if (availabilityColumn == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Resource availability column not found. Expected 'available' or 'availability'.");
-        }
-
-        int updatedRows = jdbcTemplate.update(
-                "UPDATE \"Resource\" SET " + availabilityColumn + " = ? WHERE id = ?",
-                available,
-                resourceId);
-        if (updatedRows == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "resource_id not found: " + resourceId);
-        }
-
-        return new ChangeResourceAvailabilityResponse(
-                resourceId,
-                available,
-                "Resource availability updated successfully.");
-    }
-
-    private boolean parseAvailableValue(com.fasterxml.jackson.databind.JsonNode node) {
-        if (node == null || node.isNull()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "available is required.");
-        }
-        if (node.isBoolean()) {
-            return node.booleanValue();
-        }
-        if (node.isInt() || node.isLong()) {
-            long v = node.longValue();
-            if (v == 1L) {
-                return true;
-            }
-            if (v == 0L) {
-                return false;
-            }
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "available must be true/false or 1/0.");
-        }
-        if (node.isTextual()) {
-            String v = node.textValue().trim().toLowerCase(Locale.ROOT);
-            if (v.equals("true") || v.equals("1")) {
-                return true;
-            }
-            if (v.equals("false") || v.equals("0")) {
-                return false;
-            }
-        }
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "available must be true/false or 1/0.");
-    }
-
-    private String findAvailabilityColumn() {
-        return jdbcTemplate.query(
-                """
-                        SELECT c.column_name
-                        FROM information_schema.columns c
-                        WHERE LOWER(c.table_schema) = 'public'
-                          AND LOWER(c.table_name) = 'resource'
-                          AND LOWER(c.column_name) IN ('available', 'availability')
-                        ORDER BY CASE WHEN LOWER(c.column_name) = 'available' THEN 0 ELSE 1 END
-                        LIMIT 1
-                        """,
-                rs -> rs.next() ? rs.getString("column_name") : null);
+    public String getDayByDate(LocalDate date) {
+        return date.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH);
     }
 
     private List<FacilityCatalogItemResponse> toResponse(List<ResourceEntity> rows) {
