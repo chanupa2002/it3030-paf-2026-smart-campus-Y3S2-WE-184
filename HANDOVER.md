@@ -229,4 +229,4 @@ Base: `/api/auth`, `/api/users`
   3. slot-resource mapping APIs
   4. change availability API wiring
 
---this hd--
+--this hd new--
