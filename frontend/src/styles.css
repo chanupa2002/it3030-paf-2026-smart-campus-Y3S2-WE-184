@@ -829,14 +829,17 @@ input { outline: none; }
 .dashboard-page {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #fff;
 }
 
 .sidebar {
   display: flex;
+  position: sticky;
+  top: 0;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   background: #fff;
   border-right: 1px solid var(--line);
   box-shadow: none;
@@ -1114,7 +1117,9 @@ input { outline: none; }
 .content-area {
   display: grid;
   grid-template-rows: 48px minmax(0, 1fr);
+  height: 100vh;
   min-width: 0;
+  overflow: hidden;
   background: #fff;
 }
 
@@ -1278,6 +1283,8 @@ input { outline: none; }
   display: grid;
   gap: 0;
   padding: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .section-stage {
@@ -1393,8 +1400,14 @@ input { outline: none; }
   padding-bottom: 42px;
 }
 
+.dashboard-content-panel-settings {
+  gap: 8px;
+  padding-top: 16px;
+}
+
 .resources-shell {
   display: grid;
+  align-content: start;
   gap: 22px;
 }
 
@@ -1489,9 +1502,6 @@ input { outline: none; }
 
 .settings-profile-shell {
   display: grid;
-  gap: 8px;
-  margin-left: 80px;
-  margin-top: 40px;
 }
 
 .settings-profile-card {
@@ -1733,6 +1743,34 @@ input { outline: none; }
   font-weight: 600;
 }
 
+.resources-available-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(152, 171, 214, 0.24);
+  background: #f5f7ff;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .resources-available-toggle {
+  border-color: rgba(118, 144, 199, 0.18);
+  background: rgba(19, 30, 50, 0.92);
+}
+
+.resources-available-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.resources-available-toggle span {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .resource-meta-label,
 .resources-state-card span {
   color: var(--muted);
@@ -1915,6 +1953,7 @@ input { outline: none; }
 
 .resource-management-shell {
   display: grid;
+  align-content: start;
   gap: 22px;
 }
 

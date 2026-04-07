@@ -120,6 +120,26 @@ public class FacilityCatalogController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/isResourceInSlot")
+    public ResponseEntity<Boolean> isResourceInSlot(
+            @Valid @RequestBody DeleteResourceFromSlotRequest request) {
+        boolean exists = facilityCatalogService.isResourceInSlot(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(exists);
+    }
+
+    @PostMapping("/changeResourceAvailability")
+    public ResponseEntity<ChangeResourceAvailabilityResponse> changeResourceAvailability(
+            @Valid @RequestBody ChangeResourceAvailabilityRequest request) {
+        ChangeResourceAvailabilityResponse response = facilityCatalogService.changeResourceAvailability(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
     @GetMapping("/GetDaybyDate")
     public ResponseEntity<String> getDaybyDate(@RequestParam("date") LocalDate date) {
         if (date == null) {

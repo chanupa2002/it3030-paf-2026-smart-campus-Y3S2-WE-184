@@ -47,22 +47,6 @@ const ACADEMIC_SECTIONS = [
     ],
   },
   {
-    id: "settings",
-    label: "Settings",
-    view: "empty",
-    iconSrc: "/assets/icons/settings.png",
-    placement: "primary",
-    title: "Settings",
-    description: "Manage preferences and system settings for this dashboard.",
-    searchPlaceholder: "Search settings...",
-    buttonLabel: "Add Setting",
-    items: [
-      { code: "PF", name: "Profile", description: "User profile settings placeholder row." },
-      { code: "TH", name: "Theme", description: "Theme and appearance settings placeholder row." },
-      { code: "NT", name: "Notifications", description: "Notification settings placeholder row." },
-    ],
-  },
-  {
     id: "comp-1",
     label: "Resources",
     view: "resources",
@@ -130,6 +114,22 @@ const ACADEMIC_SECTIONS = [
     buttonLabel: "Raise Ticket",
     items: [
       { code: "RT", name: "Raise Ticket", description: "Raise ticket module placeholder." },
+    ],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    view: "empty",
+    iconSrc: "/assets/icons/settings.png",
+    placement: "primary",
+    title: "Settings",
+    description: "Manage preferences and system settings for this dashboard.",
+    searchPlaceholder: "Search settings...",
+    buttonLabel: "Add Setting",
+    items: [
+      { code: "PF", name: "Profile", description: "User profile settings placeholder row." },
+      { code: "TH", name: "Theme", description: "Theme and appearance settings placeholder row." },
+      { code: "NT", name: "Notifications", description: "Notification settings placeholder row." },
     ],
   },
 ];
@@ -785,6 +785,8 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
                   ? "dashboard-content-panel-resources"
                   : shouldShowAdminResourceManagement
                     ? "dashboard-content-panel-resources"
+                  : shouldShowSettingsProfile
+                    ? "dashboard-content-panel-settings"
                   : shouldShowMyBookings
                     ? "dashboard-content-panel-book-resource"
                   : shouldShowBookResource
@@ -812,6 +814,7 @@ function ResourcesSection({ token }) {
   const [query, setQuery] = useState("");
   const [allResources, setAllResources] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -832,10 +835,16 @@ function ResourcesSection({ token }) {
           !normalizedQuery || (resource.name || "").toLowerCase().includes(normalizedQuery);
         const matchesType =
           selectedTypes.length === 0 || selectedTypes.includes(resource.type);
+        const rawAvailability = resource?.available ?? resource?.availability;
+        const availabilityValue =
+          rawAvailability === true || rawAvailability === false
+            ? rawAvailability
+            : rawAvailability === 1 || rawAvailability === "1" || rawAvailability === "true";
+        const matchesAvailability = !availableOnly || availabilityValue === true;
 
-        return matchesQuery && matchesType;
+        return matchesQuery && matchesType && matchesAvailability;
       }),
-    [allResources, normalizedQuery, selectedTypes]
+    [allResources, availableOnly, normalizedQuery, selectedTypes]
   );
 
   useEffect(() => {
@@ -900,7 +909,6 @@ function ResourcesSection({ token }) {
       <div className="workspace-header">
         <div className="workspace-title-block">
           <h2>Campus Resources</h2>
-          <p>Search and browse the currently available resource catalog across the campus.</p>
         </div>
 
         <div className="workspace-toolbar">
@@ -964,6 +972,15 @@ function ResourcesSection({ token }) {
               </div>
             </div>
           </div>
+
+          <label className="resources-available-toggle">
+            <input
+              checked={availableOnly}
+              onChange={(event) => setAvailableOnly(event.target.checked)}
+              type="checkbox"
+            />
+            <span>Available Only</span>
+          </label>
         </div>
       </div>
 
@@ -1047,6 +1064,7 @@ function AdminResourceManagementSection({ token }) {
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [deletingResource, setDeletingResource] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const queryValue = query.trim().toLowerCase();
   const typeOptions = useMemo(
@@ -1056,9 +1074,36 @@ function AdminResourceManagementSection({ token }) {
     [resources]
   );
 
+  function getCapacityNumber(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim() !== "") {
+      const parsedValue = Number(value);
+      return Number.isFinite(parsedValue) ? parsedValue : null;
+    }
+
+    return null;
+  }
+
   const filteredResources = useMemo(() => {
-    const min = minCapacity.trim() === "" ? null : Number(minCapacity);
-    const max = maxCapacity.trim() === "" ? null : Number(maxCapacity);
+    const parsedMin = minCapacity.trim() === "" ? null : Number(minCapacity);
+    const parsedMax = maxCapacity.trim() === "" ? null : Number(maxCapacity);
+
+    const min =
+      parsedMin != null && Number.isFinite(parsedMin)
+        ? parsedMax != null && Number.isFinite(parsedMax)
+          ? Math.min(parsedMin, parsedMax)
+          : parsedMin
+        : null;
+
+    const max =
+      parsedMax != null && Number.isFinite(parsedMax)
+        ? parsedMin != null && Number.isFinite(parsedMin)
+          ? Math.max(parsedMin, parsedMax)
+          : parsedMax
+        : null;
 
     return resources.filter((resource) => {
       const resourceName = (resource.name || "").toLowerCase();
@@ -1067,7 +1112,7 @@ function AdminResourceManagementSection({ token }) {
         !queryValue || resourceName.includes(queryValue) || resourceId.includes(queryValue);
       const matchesType = !selectedType || resource.type === selectedType;
 
-      const capacityValue = typeof resource.capacity === "number" ? resource.capacity : null;
+      const capacityValue = getCapacityNumber(resource.capacity);
       const matchesMin = min == null || (capacityValue != null && capacityValue >= min);
       const matchesMax = max == null || (capacityValue != null && capacityValue <= max);
       const availabilityValue = getAvailabilityBoolean(resource);
@@ -1361,6 +1406,7 @@ function AdminResourceManagementSection({ token }) {
     if (!deletingResource) return;
 
     setIsDeleting(true);
+    setDeleteError("");
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await fetch(`${API_BASE_URL}/api/facilities/deleteResource/${deletingResource.id}`, {
@@ -1376,7 +1422,9 @@ function AdminResourceManagementSection({ token }) {
       setResources((current) => current.filter((resource) => resource.id !== deletingResource.id));
       setDeletingResource(null);
     } catch (requestError) {
-      window.alert(requestError.message || "Unable to delete the resource right now.");
+      setDeleteError(
+        requestError.message || "Unable to delete the resource right now."
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -1613,16 +1661,42 @@ function AdminResourceManagementSection({ token }) {
           <div className="modal-card modal-card-confirm" role="dialog" aria-modal="true" aria-labelledby="resource-delete-title">
             <div className="modal-header">
               <h3 id="resource-delete-title">Delete Resource</h3>
-              <p>Are you sure you want to delete {deletingResource.name || "this resource"}?</p>
+              <p>
+                {deleteError
+                  ? "This resource having current booking, so cancel them first and try to delete the resource."
+                  : `Are you sure you want to delete ${deletingResource.name || "this resource"}?`}
+              </p>
             </div>
-            <div className="modal-actions">
-              <button className="modal-secondary-button" onClick={() => setDeletingResource(null)} type="button">
-                No
-              </button>
-              <button className="resource-management-action resource-management-action-delete" disabled={isDeleting} onClick={confirmDelete} type="button">
-                {isDeleting ? "Deleting..." : "Yes, Delete"}
-              </button>
-            </div>
+            {deleteError ? (
+              <div className="modal-actions">
+                <button
+                  className="modal-primary-button"
+                  onClick={() => {
+                    setDeletingResource(null);
+                    setDeleteError("");
+                  }}
+                  type="button"
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+              <div className="modal-actions">
+                <button
+                  className="modal-secondary-button"
+                  onClick={() => {
+                    setDeletingResource(null);
+                    setDeleteError("");
+                  }}
+                  type="button"
+                >
+                  No
+                </button>
+                <button className="resource-management-action resource-management-action-delete" disabled={isDeleting} onClick={confirmDelete} type="button">
+                  {isDeleting ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
@@ -1801,10 +1875,9 @@ function SettingsProfileSection({ user }) {
       <div className="workspace-header">
         <div className="workspace-title-block">
           <h2>Profile</h2>
-          <p>Your logged-in user details appear here.</p>
         </div>
       </div>
-
+      
       <div className="settings-profile-card">
         <div className="settings-profile-hero">
           <div className="settings-profile-avatar">{getInitials(user?.name || user?.email || "SC")}</div>
@@ -2152,6 +2225,3 @@ function getInitials(value) {
 }
 
 export default App;
-
-
-

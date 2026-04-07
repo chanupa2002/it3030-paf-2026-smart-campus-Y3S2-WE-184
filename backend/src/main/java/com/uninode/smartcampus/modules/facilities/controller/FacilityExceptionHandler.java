@@ -67,12 +67,19 @@ public class FacilityExceptionHandler {
         public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
                         DataIntegrityViolationException ex,
                         HttpServletRequest request) {
+                String requestPath = request.getRequestURI();
+                String message = "Resource violates a database constraint (possibly duplicate name).";
+
+                if (requestPath != null && requestPath.contains("/deleteResource/")) {
+                        message = "This resource having current booking, so cancel them first and try to delete the resource.";
+                }
+
                 ApiErrorResponse response = new ApiErrorResponse(
                                 OffsetDateTime.now(),
                                 HttpStatus.CONFLICT.value(),
                                 HttpStatus.CONFLICT.getReasonPhrase(),
-                                "Resource violates a database constraint (possibly duplicate name).",
-                                request.getRequestURI());
+                                message,
+                                requestPath);
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         }
 
