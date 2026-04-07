@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingRequest;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.AvailableSlotResponse;
+import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupRequest;
+import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupResponse;
 import com.uninode.smartcampus.modules.booking.dto.PendingBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.RejectBookingRequest;
 import com.uninode.smartcampus.modules.booking.dto.RejectBookingResponse;
@@ -81,34 +85,58 @@ public class BookingSlotService {
         public List<PendingBookingResponse> viewPendingBookings(LocalDate createdDate) {
                 String sql = """
                                 SELECT
+                                    COALESCE(rb.booking_group_id, rb.booking_id) AS booking_group_id,
                                     rb.booking_id,
                                     rb.created_at,
                                     rb.attendees,
                                     rb.date,
                                     rb.timeslot_id,
+                                    ds.slot,
                                     rb.purpose,
                                     rb.status,
                                     rb.resource_id,
                                     rb.user_id
                                 FROM "Resource_booking" rb
+                                INNER JOIN "Ds_slot" ds ON ds.slot_id = rb.timeslot_id
                                 WHERE CAST(rb.created_at AS DATE) = ?
                                   AND LOWER(TRIM(COALESCE(rb.status, ''))) = 'pending'
-                                ORDER BY rb.created_at DESC, rb.booking_id DESC
+                                ORDER BY COALESCE(rb.booking_group_id, rb.booking_id) DESC, rb.booking_id ASC
                                 """;
 
-                return jdbcTemplate.query(
+                List<PendingBookingRow> rows = jdbcTemplate.query(
                                 sql,
-                                (rs, rowNum) -> new PendingBookingResponse(
+                                (rs, rowNum) -> new PendingBookingRow(
+                                                rs.getLong("booking_group_id"),
                                                 rs.getLong("booking_id"),
                                                 rs.getObject("created_at", OffsetDateTime.class),
                                                 (Long) rs.getObject("attendees"),
                                                 rs.getObject("date", LocalDate.class),
-                                                (Long) rs.getObject("timeslot_id"),
+                                                rs.getLong("slot"),
                                                 rs.getString("purpose"),
                                                 rs.getString("status"),
                                                 (Long) rs.getObject("resource_id"),
                                                 (Long) rs.getObject("user_id")),
                                 createdDate);
+
+                Map<Long, PendingBookingAccumulator> grouped = new LinkedHashMap<>();
+                for (PendingBookingRow row : rows) {
+                        grouped.computeIfAbsent(
+                                        row.bookingGroupId(),
+                                        ignored -> new PendingBookingAccumulator(
+                                                        row.bookingGroupId(),
+                                                        row.createdAt(),
+                                                        row.attendees(),
+                                                        row.date(),
+                                                        row.purpose(),
+                                                        row.status(),
+                                                        row.resourceId(),
+                                                        row.userId()))
+                                        .add(row.bookingId(), row.slot());
+                }
+
+                return grouped.values().stream()
+                                .map(PendingBookingAccumulator::toResponse)
+                                .toList();
         }
 
         @Transactional(readOnly = true)
@@ -467,37 +495,42 @@ public class BookingSlotService {
         public ApproveBookingResponse approveBooking(ApproveBookingRequest request) {
                 BookingApprovalRow booking = jdbcTemplate.query(
                                 """
-                                                SELECT rb.booking_id, rb.user_id
+                                                SELECT rb.booking_group_id
                                                 FROM "Resource_booking" rb
-                                                WHERE rb.booking_id = ?
+                                                WHERE rb.booking_group_id = ?
+                                                  AND rb.user_id = ?
                                                 LIMIT 1
                                                 """,
                                 rs -> rs.next()
                                                 ? new BookingApprovalRow(
-                                                                rs.getLong("booking_id"),
-                                                                (Long) rs.getObject("user_id"))
+                                                                rs.getLong("booking_group_id"))
                                                 : null,
-                                request.bookingId());
+                                request.bookingGroupId(),
+                                request.userId());
 
                 if (booking == null) {
                         throw new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "No booking found for booking_id '" + request.bookingId() + "'.");
+                                        "No booking group found for booking_group_id '" + request.bookingGroupId()
+                                                        + "' and user_id '" + request.userId() + "'.");
                 }
 
                 int updatedRows = jdbcTemplate.update(
                                 """
                                                 UPDATE "Resource_booking"
                                                 SET status = ?
-                                                WHERE booking_id = ?
+                                                WHERE booking_group_id = ?
+                                                  AND user_id = ?
                                                 """,
                                 "approved",
-                                request.bookingId());
+                                request.bookingGroupId(),
+                                request.userId());
 
                 if (updatedRows == 0) {
                         throw new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "No booking found for booking_id '" + request.bookingId() + "'.");
+                                        "No booking group found for booking_group_id '" + request.bookingGroupId()
+                                                        + "' and user_id '" + request.userId() + "'.");
                 }
 
                 jdbcTemplate.update(
@@ -507,15 +540,216 @@ public class BookingSlotService {
                                                 """,
                                 "Booking",
                                 "Your booking request was approved.",
-                                booking.userId());
+                                request.userId());
 
                 return new ApproveBookingResponse(
-                                request.bookingId(),
-                                "Booking approved and user notified successfully.");
+                                request.bookingGroupId(),
+                                "Booking group approved and user notified successfully.");
         }
 
         private record BookingApprovalRow(
+                        Long bookingGroupId) {
+        }
+
+        @Transactional
+        public CreateBookingGroupResponse createBookingGroup(CreateBookingGroupRequest request) {
+                String resourceName = request.resourceName().trim();
+                Long resourceId = jdbcTemplate.query(
+                                """
+                                                SELECT r.id
+                                                FROM "Resource" r
+                                                WHERE LOWER(TRIM(COALESCE(r.name, ''))) = LOWER(TRIM(?))
+                                                  AND r.availability = TRUE
+                                                LIMIT 1
+                                                """,
+                                rs -> rs.next() ? rs.getLong("id") : null,
+                                resourceName);
+
+                if (resourceId == null) {
+                        throw new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "No available resource found for name '" + resourceName + "'.");
+                }
+
+                String day = request.date().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+                List<Long> slots = request.slots();
+
+                Boolean available = checkRequestedSlotsAvailability(resourceId, request.date(), day, slots);
+                if (!Boolean.TRUE.equals(available)) {
+                        throw new ResponseStatusException(
+                                        HttpStatus.CONFLICT,
+                                        "Requested slots are not available for the selected resource and date.");
+                }
+
+                List<Long> slotIds = new ArrayList<>();
+                for (Long slot : slots) {
+                        Long slotId = jdbcTemplate.query(
+                                        """
+                                                        SELECT ds.slot_id
+                                                        FROM "Ds_slot" ds
+                                                        WHERE LOWER(TRIM(ds.day)) = LOWER(TRIM(?))
+                                                          AND ds.slot = ?
+                                                        LIMIT 1
+                                                        """,
+                                        rs -> rs.next() ? rs.getLong("slot_id") : null,
+                                        day,
+                                        slot);
+
+                        if (slotId == null) {
+                                throw new ResponseStatusException(
+                                                HttpStatus.BAD_REQUEST,
+                                                "No slot_id found for day '" + day + "' and slot '" + slot + "'.");
+                        }
+                        slotIds.add(slotId);
+                }
+
+                Long firstBookingId = jdbcTemplate.queryForObject(
+                                """
+                                                INSERT INTO "Resource_booking" (attendees, date, timeslot_id, purpose, status, resource_id, user_id)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                                RETURNING booking_id
+                                                """,
+                                Long.class,
+                                request.attendees(),
+                                request.date(),
+                                slotIds.get(0),
+                                request.purpose().trim(),
+                                "pending",
+                                resourceId,
+                                request.userId());
+
+                if (firstBookingId == null) {
+                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                        "Failed to create the initial booking row.");
+                }
+
+                jdbcTemplate.update(
+                                """
+                                                UPDATE "Resource_booking"
+                                                SET booking_group_id = ?
+                                                WHERE booking_id = ?
+                                                """,
+                                firstBookingId,
+                                firstBookingId);
+
+                List<Long> bookingIds = new ArrayList<>();
+                bookingIds.add(firstBookingId);
+
+                for (int i = 1; i < slotIds.size(); i++) {
+                        Long bookingId = jdbcTemplate.queryForObject(
+                                        """
+                                                        INSERT INTO "Resource_booking" (attendees, date, timeslot_id, purpose, status, resource_id, user_id, booking_group_id)
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                                        RETURNING booking_id
+                                                        """,
+                                        Long.class,
+                                        request.attendees(),
+                                        request.date(),
+                                        slotIds.get(i),
+                                        request.purpose().trim(),
+                                        "pending",
+                                        resourceId,
+                                        request.userId(),
+                                        firstBookingId);
+
+                        if (bookingId == null) {
+                                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                                "Failed to create one of the grouped booking rows.");
+                        }
+                        bookingIds.add(bookingId);
+                }
+
+                return new CreateBookingGroupResponse(
+                                firstBookingId,
+                                bookingIds,
+                                "Booking group created successfully.");
+        }
+
+        @Transactional(readOnly = true)
+        public List<String> getAllowedResourceTypesByRole(String roleName) {
+                if ("student".equalsIgnoreCase(roleName)) {
+                        return jdbcTemplate.query(
+                                        """
+                                                        SELECT DISTINCT r.type
+                                                        FROM "Resource" r
+                                                        WHERE LOWER(TRIM(COALESCE(r.type, ''))) NOT IN ('lab', 'lechall', 'lecturehall', 'lecturehalls')
+                                                        ORDER BY r.type
+                                                        """,
+                                        (rs, rowNum) -> rs.getString("type"));
+                }
+
+                return jdbcTemplate.query(
+                                """
+                                                SELECT DISTINCT r.type
+                                                FROM "Resource" r
+                                                WHERE TRIM(COALESCE(r.type, '')) <> ''
+                                                ORDER BY r.type
+                                                """,
+                                (rs, rowNum) -> rs.getString("type"));
+        }
+
+        private record PendingBookingRow(
+                        Long bookingGroupId,
                         Long bookingId,
+                        OffsetDateTime createdAt,
+                        Long attendees,
+                        LocalDate date,
+                        Long slot,
+                        String purpose,
+                        String status,
+                        Long resourceId,
                         Long userId) {
+        }
+
+        private static final class PendingBookingAccumulator {
+                private final Long bookingGroupId;
+                private final OffsetDateTime createdAt;
+                private final Long attendees;
+                private final LocalDate date;
+                private final String purpose;
+                private final String status;
+                private final Long resourceId;
+                private final Long userId;
+                private final List<Long> bookingIds = new ArrayList<>();
+                private final List<Long> slots = new ArrayList<>();
+
+                private PendingBookingAccumulator(
+                                Long bookingGroupId,
+                                OffsetDateTime createdAt,
+                                Long attendees,
+                                LocalDate date,
+                                String purpose,
+                                String status,
+                                Long resourceId,
+                                Long userId) {
+                        this.bookingGroupId = bookingGroupId;
+                        this.createdAt = createdAt;
+                        this.attendees = attendees;
+                        this.date = date;
+                        this.purpose = purpose;
+                        this.status = status;
+                        this.resourceId = resourceId;
+                        this.userId = userId;
+                }
+
+                private PendingBookingAccumulator add(Long bookingId, Long slot) {
+                        this.bookingIds.add(bookingId);
+                        this.slots.add(slot);
+                        return this;
+                }
+
+                private PendingBookingResponse toResponse() {
+                        return new PendingBookingResponse(
+                                        bookingGroupId,
+                                        List.copyOf(bookingIds),
+                                        createdAt,
+                                        attendees,
+                                        date,
+                                        List.copyOf(slots),
+                                        purpose,
+                                        status,
+                                        resourceId,
+                                        userId);
+                }
         }
 }

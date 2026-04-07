@@ -20,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingRequest;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.AvailableSlotResponse;
+import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupRequest;
+import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupResponse;
 import com.uninode.smartcampus.modules.booking.dto.PendingBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.RejectBookingRequest;
 import com.uninode.smartcampus.modules.booking.dto.RejectBookingResponse;
@@ -372,6 +374,31 @@ public class BookingSlotController {
     public ResponseEntity<ApproveBookingResponse> approveBooking(
             @Valid @RequestBody ApproveBookingRequest request) {
         ApproveBookingResponse response = bookingSlotService.approveBooking(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @PostMapping("/createBookingGroup")
+    public ResponseEntity<CreateBookingGroupResponse> createBookingGroup(
+            @Valid @RequestBody CreateBookingGroupRequest request) {
+        CreateBookingGroupResponse response = bookingSlotService.createBookingGroup(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @GetMapping("/getAllowedResourceTypesByRole")
+    public ResponseEntity<List<String>> getAllowedResourceTypesByRole(
+            @RequestParam("roleName") String roleName) {
+        String normalizedRoleName = roleName == null ? "" : roleName.trim();
+        if (normalizedRoleName.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query parameter 'roleName' is required.");
+        }
+
+        List<String> response = bookingSlotService.getAllowedResourceTypesByRole(normalizedRoleName);
         return ResponseEntity
                 .ok()
                 .cacheControl(CacheControl.noStore())
