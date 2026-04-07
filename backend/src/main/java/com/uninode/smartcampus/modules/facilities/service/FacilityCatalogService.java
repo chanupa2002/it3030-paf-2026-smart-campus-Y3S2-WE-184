@@ -36,17 +36,29 @@ public class FacilityCatalogService {
 
     @Transactional(readOnly = true)
     public List<FacilityCatalogItemResponse> getFacilitiesCatalog() {
-        return toResponse(resourceRepository.findAllResources());
+        return queryResourceItems("""
+                ORDER BY r.id
+                """);
     }
 
     @Transactional(readOnly = true)
     public List<FacilityCatalogItemResponse> getResourceByType(String type) {
-        return toResponse(resourceRepository.findResourcesByType(type));
+        return queryResourceItems(
+                """
+                        WHERE LOWER(TRIM(r.type)) = LOWER(TRIM(?))
+                        ORDER BY r.id
+                        """,
+                type);
     }
 
     @Transactional(readOnly = true)
     public List<FacilityCatalogItemResponse> getResourceByName(String name) {
-        return toResponse(resourceRepository.findResourcesByName(name));
+        return queryResourceItems(
+                """
+                        WHERE LOWER(TRIM(COALESCE(r.name, ''))) LIKE LOWER(CONCAT('%', TRIM(?), '%'))
+                        ORDER BY r.id
+                        """,
+                name);
     }
 
     @Transactional
@@ -59,21 +71,22 @@ public class FacilityCatalogService {
         String sql = """
                 INSERT INTO "Resource" (type, name, capacity, location)
                 VALUES (?, ?, ?, ?)
-                RETURNING id, type, name, capacity, location
+                RETURNING id
                 """;
 
-        return jdbcTemplate.queryForObject(
+        Long createdId = jdbcTemplate.queryForObject(
                 sql,
-                (rs, rowNum) -> new FacilityCatalogItemResponse(
-                        rs.getLong("id"),
-                        rs.getString("type"),
-                        rs.getString("name"),
-                        (Integer) rs.getObject("capacity"),
-                        rs.getString("location")),
+                Long.class,
                 request.type().trim(),
                 normalizedName,
                 request.capacity(),
                 request.location().trim());
+        if (createdId == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to create resource.");
+        }
+
+        return findResourceItemById(createdId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Created resource not found."));
     }
 
     @Transactional
@@ -95,20 +108,21 @@ public class FacilityCatalogService {
                 UPDATE "Resource"
                 SET capacity = ?, location = ?
                 WHERE id = ?
-                RETURNING id, type, name, capacity, location
+                RETURNING id
                 """;
 
-        return jdbcTemplate.queryForObject(
+        Long updatedId = jdbcTemplate.queryForObject(
                 sql,
-                (rs, rowNum) -> new FacilityCatalogItemResponse(
-                        rs.getLong("id"),
-                        rs.getString("type"),
-                        rs.getString("name"),
-                        (Integer) rs.getObject("capacity"),
-                        rs.getString("location")),
+                Long.class,
                 updatedCapacity,
                 updatedLocation,
                 id);
+        if (updatedId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found for id: " + id);
+        }
+
+        return findResourceItemById(updatedId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found for id: " + id));
     }
 
     @Transactional
@@ -217,16 +231,46 @@ public class FacilityCatalogService {
         return date.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH);
     }
 
-    private List<FacilityCatalogItemResponse> toResponse(List<ResourceEntity> rows) {
-        return rows.stream().map(this::toItem).toList();
+    private List<FacilityCatalogItemResponse> queryResourceItems(String whereAndOrderClause, Object... params) {
+        String availabilityColumn = findAvailabilityColumn();
+        String availabilityExpression = availabilityColumn == null
+                ? "CAST(NULL AS BOOLEAN)"
+                : "r." + availabilityColumn;
+
+        String sql = """
+                SELECT
+                    r.id,
+                    r.type,
+                    r.name,
+                    r.capacity,
+                    r.location,
+                    %s AS available
+                FROM "Resource" r
+                %s
+                """.formatted(availabilityExpression, whereAndOrderClause);
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new FacilityCatalogItemResponse(
+                        rs.getLong("id"),
+                        rs.getString("type"),
+                        rs.getString("name"),
+                        (Integer) rs.getObject("capacity"),
+                        rs.getString("location"),
+                        (Boolean) rs.getObject("available")),
+                params);
     }
 
-    private FacilityCatalogItemResponse toItem(ResourceEntity row) {
-        return new FacilityCatalogItemResponse(
-                row.getId(),
-                row.getType(),
-                row.getName(),
-                row.getCapacity(),
-                row.getLocation());
+    private java.util.Optional<FacilityCatalogItemResponse> findResourceItemById(Long id) {
+        List<FacilityCatalogItemResponse> rows = queryResourceItems(
+                """
+                        WHERE r.id = ?
+                        LIMIT 1
+                        """,
+                id);
+        if (rows.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(rows.get(0));
     }
 }

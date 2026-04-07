@@ -1,0 +1,165 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.Cancelled_Resource_booking (
+  booking_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  attendees bigint,
+  date date,
+  timeslot_id bigint,
+  purpose text,
+  status text,
+  resource_id bigint,
+  user_id bigint,
+  booking_group_id bigint,
+  CONSTRAINT Cancelled_Resource_booking_pkey PRIMARY KEY (booking_id),
+  CONSTRAINT Cancelled_Resource_booking_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.Resource(id),
+  CONSTRAINT Cancelled_Resource_booking_timeslot_id_fkey FOREIGN KEY (timeslot_id) REFERENCES public.Ds_slot(slot_id),
+  CONSTRAINT Cancelled_Resource_booking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.Users(user_id)
+);
+CREATE TABLE public.Ds_resource (
+  ds_resource_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  slot_id bigint NOT NULL,
+  resource_id bigint,
+  CONSTRAINT Ds_resource_pkey PRIMARY KEY (ds_resource_id),
+  CONSTRAINT Ds_resource_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.Resource(id),
+  CONSTRAINT Ds_resource_slot_id_fkey FOREIGN KEY (slot_id) REFERENCES public.Ds_slot(slot_id)
+);
+CREATE TABLE public.Ds_slot (
+  slot_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  day text NOT NULL,
+  slot bigint,
+  CONSTRAINT Ds_slot_pkey PRIMARY KEY (slot_id)
+);
+CREATE TABLE public.Notifications (
+  notification_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  notification_type text,
+  notification text,
+  user_id bigint,
+  CONSTRAINT Notifications_pkey PRIMARY KEY (notification_id),
+  CONSTRAINT Notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.Users(user_id)
+);
+CREATE TABLE public.Rejected_Resource_booking (
+  booking_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  attendees bigint,
+  date date,
+  timeslot_id bigint,
+  purpose text,
+  status text,
+  resource_id bigint,
+  user_id bigint,
+  reject_reason text,
+  booking_group_id bigint,
+  CONSTRAINT Rejected_Resource_booking_pkey PRIMARY KEY (booking_id),
+  CONSTRAINT Rejected_Resource_booking_duplicate_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.Resource(id),
+  CONSTRAINT Rejected_Resource_booking_duplicate_timeslot_id_fkey FOREIGN KEY (timeslot_id) REFERENCES public.Ds_slot(slot_id),
+  CONSTRAINT Rejected_Resource_booking_duplicate_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.Users(user_id)
+);
+CREATE TABLE public.Resource (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  type character varying NOT NULL,
+  name character varying UNIQUE,
+  capacity integer,
+  location character varying,
+  availability boolean DEFAULT true,
+  CONSTRAINT Resource_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.Resource_booking (
+  booking_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  attendees bigint,
+  date date,
+  timeslot_id bigint,
+  purpose text,
+  status text,
+  resource_id bigint,
+  user_id bigint,
+  booking_group_id bigint,
+  CONSTRAINT Resource_booking_pkey PRIMARY KEY (booking_id),
+  CONSTRAINT Resource_booking_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.Resource(id),
+  CONSTRAINT Resource_booking_timeslot_id_fkey FOREIGN KEY (timeslot_id) REFERENCES public.Ds_slot(slot_id),
+  CONSTRAINT Resource_booking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.Users(user_id)
+);
+CREATE TABLE public.Ticket_comments (
+  ticket_comment_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  ticket_id bigint,
+  user_id bigint,
+  comment text,
+  previous_ticket_comment_id bigint,
+  CONSTRAINT Ticket_comments_pkey PRIMARY KEY (ticket_comment_id),
+  CONSTRAINT Ticket_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.Users(user_id),
+  CONSTRAINT Ticket_comments_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.Tickets(ticket_id),
+  CONSTRAINT Ticket_comments_previous_ticket_comment_id_fkey FOREIGN KEY (previous_ticket_comment_id) REFERENCES public.Ticket_comments(ticket_comment_id)
+);
+CREATE TABLE public.Tickets (
+  ticket_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  raised_user_id bigint,
+  assigned_user_id bigint,
+  priority character varying,
+  resource_id bigint,
+  description text,
+  contact_number character varying,
+  status character varying,
+  images jsonb,
+  category character varying,
+  resolution_notes text,
+  CONSTRAINT Tickets_pkey PRIMARY KEY (ticket_id),
+  CONSTRAINT Tickets_raised_user_id_fkey FOREIGN KEY (raised_user_id) REFERENCES public.Users(user_id),
+  CONSTRAINT Tickets_assigned_user_id_fkey FOREIGN KEY (assigned_user_id) REFERENCES public.Users(user_id),
+  CONSTRAINT Tickets_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.Resource(id)
+);
+CREATE TABLE public.User_access (
+  user_access_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  resource_type text,
+  CONSTRAINT User_access_pkey PRIMARY KEY (user_access_id),
+  CONSTRAINT User_access_user_access_id_fkey FOREIGN KEY (user_access_id) REFERENCES public.User_types(usertype_id)
+);
+CREATE TABLE public.User_types (
+  usertype_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  role_name character varying NOT NULL,
+  CONSTRAINT User_types_pkey PRIMARY KEY (usertype_id)
+);
+CREATE TABLE public.Users (
+  user_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name character varying NOT NULL,
+  phone character varying,
+  address character varying,
+  type_id bigint,
+  username character varying,
+  password character varying,
+  email character varying,
+  created_at timestamp without time zone,
+  active boolean,
+  CONSTRAINT Users_pkey PRIMARY KEY (user_id),
+  CONSTRAINT Users_type_id_fkey FOREIGN KEY (type_id) REFERENCES public.User_types(usertype_id)
+);
+CREATE TABLE public.flyway_schema_history (
+  installed_rank integer NOT NULL,
+  version character varying,
+  description character varying NOT NULL,
+  type character varying NOT NULL,
+  script character varying NOT NULL,
+  checksum integer,
+  installed_by character varying NOT NULL,
+  installed_on timestamp without time zone NOT NULL DEFAULT now(),
+  execution_time integer NOT NULL,
+  success boolean NOT NULL,
+  CONSTRAINT flyway_schema_history_pkey PRIMARY KEY (installed_rank)
+);
+CREATE TABLE public.ticket_attachments (
+  attachment_id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp without time zone,
+  data bytea,
+  file_name character varying,
+  file_size bigint,
+  file_type character varying,
+  ticket_id bigint NOT NULL,
+  uploaded_by bigint,
+  CONSTRAINT ticket_attachments_pkey PRIMARY KEY (attachment_id),
+  CONSTRAINT fkn6vlh9bm06m7j1lh2tklbdc4l FOREIGN KEY (ticket_id) REFERENCES public.Tickets(ticket_id),
+  CONSTRAINT fkqhld8myui5ql3rugf6b3njkdj FOREIGN KEY (uploaded_by) REFERENCES public.Users(user_id)
+);
