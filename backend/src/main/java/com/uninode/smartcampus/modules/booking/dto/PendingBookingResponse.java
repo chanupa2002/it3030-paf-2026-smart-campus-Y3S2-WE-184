@@ -16,5 +16,6 @@ public record PendingBookingResponse(
         @JsonProperty("purpose") String purpose,
         @JsonProperty("status") String status,
         @JsonProperty("resource_id") Long resourceId,
+        @JsonProperty("resource_name") String resourceName,
         @JsonProperty("user_id") Long userId) {
 }

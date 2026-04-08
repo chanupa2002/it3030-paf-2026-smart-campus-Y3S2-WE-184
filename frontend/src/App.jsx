@@ -1,4 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import AdminPendingBookingsPanel from "./components/admin/AdminPendingBookingsPanel";
+import AdminTimetablePanel from "./components/admin/AdminTimetablePanel";
+import ApprovedBookingsPanel from "./components/booking/ApprovedBookingsPanel";
+import BookByNamePanel from "./components/booking/BookByNamePanel";
+import BookByTypePanel from "./components/booking/BookByTypePanel";
+import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const SESSION_KEY = "smart-campus.session";
@@ -161,7 +167,7 @@ const ADMIN_SECTIONS = [
   {
     id: "admin-comp-2",
     label: "Bookings",
-    view: "empty",
+    view: "admin-bookings",
     iconSrc: "/assets/icons/my_bookings.png",
     placement: "quick",
     title: "Bookings",
@@ -173,7 +179,7 @@ const ADMIN_SECTIONS = [
   {
     id: "admin-timetable",
     label: "Timetable",
-    view: "empty",
+    view: "admin-timetable",
     iconSrc: "/assets/icons/timetable.png",
     placement: "quick",
     title: "Timetable",
@@ -646,6 +652,8 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
   const shouldShowBookResource = activeView === "book-resource";
   const shouldShowMyTickets = activeView === "my-tickets";
   const shouldShowAdminResourceManagement = activeView === "admin-resource-management";
+  const shouldShowAdminBookings = activeView === "admin-bookings";
+  const shouldShowAdminTimetable = activeView === "admin-timetable";
   const shouldShowSettingsProfile = activeSection?.id === "settings";
   const topbarLabel =
     activeView === "dashboard"
@@ -785,6 +793,10 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
                   ? "dashboard-content-panel-resources"
                   : shouldShowAdminResourceManagement
                     ? "dashboard-content-panel-resources"
+                  : shouldShowAdminBookings
+                    ? "dashboard-content-panel-book-resource"
+                  : shouldShowAdminTimetable
+                    ? "dashboard-content-panel-resources"
                   : shouldShowSettingsProfile
                     ? "dashboard-content-panel-settings"
                   : shouldShowMyBookings
@@ -798,8 +810,10 @@ function DashboardPage({ activeSection, onLogout, onSectionChange, onThemeToggle
             >
               {shouldShowResources ? <ResourcesSection token={token} /> : null}
               {shouldShowAdminResourceManagement ? <AdminResourceManagementSection token={token} /> : null}
-              {shouldShowMyBookings ? <MyBookingsSection /> : null}
-              {shouldShowBookResource ? <BookResourceSection /> : null}
+              {shouldShowAdminBookings ? <AdminPendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowAdminTimetable ? <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowMyBookings ? <MyBookingsSection token={token} user={user} /> : null}
+              {shouldShowBookResource ? <BookResourceSection token={token} user={user} /> : null}
               {shouldShowMyTickets ? <MyTicketsSection /> : null}
               {shouldShowSettingsProfile ? <SettingsProfileSection user={user} /> : null}
             </section>
@@ -1812,11 +1826,11 @@ function AdminResourceManagementSection({ token }) {
   );
 }
 
-function MyBookingsSection() {
+function MyBookingsSection({ token, user }) {
   const [activeTab, setActiveTab] = useState("approved");
   const activePanel = {
-    approved: <ApprovedBookingsPanel />,
-    pending: <PendingBookingsPanel />,
+    approved: <ApprovedBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    pending: <PendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
     rejected: <RejectedBookingsPanel />,
     cancelled: <CancelledBookingsPanel />,
   }[activeTab];
@@ -1910,9 +1924,14 @@ function SettingsProfileSection({ user }) {
   );
 }
 
-function BookResourceSection() {
+function BookResourceSection({ token, user }) {
   const [activeTab, setActiveTab] = useState("type");
-  const activePanel = activeTab === "type" ? <BookByTypePanel /> : <BookByNamePanel />;
+  const activePanel =
+    activeTab === "type" ? (
+      <BookByTypePanel apiBaseUrl={API_BASE_URL} roleName={user?.roleName} token={token} userId={user?.userId} />
+    ) : (
+      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />
+    );
 
   return (
     <div className="book-resource-shell">
@@ -1978,24 +1997,6 @@ function MyTicketsSection() {
   );
 }
 
-function ApprovedBookingsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Approved Bookings</h3>
-      <p>Approved bookings display here. We can add the real approved booking content next.</p>
-    </div>
-  );
-}
-
-function PendingBookingsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Pending Bookings</h3>
-      <p>Pending bookings display here. We can add the real pending booking content next.</p>
-    </div>
-  );
-}
-
 function RejectedBookingsPanel() {
   return (
     <div className="book-resource-panel-card">
@@ -2028,24 +2029,6 @@ function SolvedTicketsPanel() {
     <div className="book-resource-panel-card">
       <h3>Solved Tickets</h3>
       <p>Solved tickets display here. We can add the real solved ticket content next.</p>
-    </div>
-  );
-}
-
-function BookByTypePanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Book by Type</h3>
-      <p>This is the Book by Type section. We can add the real booking flow here next.</p>
-    </div>
-  );
-}
-
-function BookByNamePanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Book by Name</h3>
-      <p>This is the Book by Name section. We can add the real booking flow here next.</p>
     </div>
   );
 }

@@ -84,13 +84,17 @@ public class BookingSlotController {
     }
 
     @GetMapping("/ViewPendingBookings")
-    public ResponseEntity<List<PendingBookingResponse>> viewPendingBookings(
-            @RequestParam("created_date") LocalDate createdDate) {
-        if (createdDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query parameter 'created_date' is required.");
-        }
+    public ResponseEntity<List<PendingBookingResponse>> viewPendingBookings() {
+        List<PendingBookingResponse> response = bookingSlotService.viewPendingBookings();
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
 
-        List<PendingBookingResponse> response = bookingSlotService.viewPendingBookings(createdDate);
+    @GetMapping("/ViewApprovedBookings")
+    public ResponseEntity<List<PendingBookingResponse>> viewApprovedBookings() {
+        List<PendingBookingResponse> response = bookingSlotService.viewApprovedBookings();
         return ResponseEntity
                 .ok()
                 .cacheControl(CacheControl.noStore())

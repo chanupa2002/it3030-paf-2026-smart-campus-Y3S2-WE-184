@@ -2,33 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 
 const DEFAULT_FILTER_DATE = getLocalDateInputValue();
 
-export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
+export default function ApprovedBookingsPanel({ apiBaseUrl, token, userId }) {
   const [filterDate, setFilterDate] = useState(DEFAULT_FILTER_DATE);
-  const [pendingBookings, setPendingBookings] = useState([]);
+  const [approvedBookings, setApprovedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const visibleBookings = useMemo(
     () =>
-      pendingBookings.filter((booking) => {
+      approvedBookings.filter((booking) => {
         const matchesUser = !userId || booking.user_id === userId;
         const matchesDate = !filterDate || booking.date === filterDate;
         return matchesUser && matchesDate;
       }),
-    [filterDate, pendingBookings, userId]
+    [approvedBookings, filterDate, userId]
   );
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function loadPendingBookings() {
+    async function loadApprovedBookings() {
       setLoading(true);
       setError("");
-      setNotice("");
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/bookings/ViewPendingBookings`, {
+        const response = await fetch(`${apiBaseUrl}/api/bookings/ViewApprovedBookings`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           signal: controller.signal,
         });
@@ -38,11 +36,11 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
           throw new Error(resolveMessage(payload));
         }
 
-        setPendingBookings(Array.isArray(payload) ? payload : []);
+        setApprovedBookings(Array.isArray(payload) ? payload : []);
       } catch (requestError) {
         if (requestError.name === "AbortError") return;
-        setPendingBookings([]);
-        setError(requestError.message || "Unable to load pending bookings right now.");
+        setApprovedBookings([]);
+        setError(requestError.message || "Unable to load approved bookings right now.");
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -50,22 +48,16 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
       }
     }
 
-    loadPendingBookings();
+    loadApprovedBookings();
     return () => controller.abort();
   }, [apiBaseUrl, token]);
-
-  const handleCancelClick = (bookingGroupId) => {
-    setNotice(
-      `Cancel action is not connected yet for booking group #${bookingGroupId} because the backend does not expose a cancel booking endpoint yet.`
-    );
-  };
 
   return (
     <div className="book-resource-panel-card book-by-name-card">
       <div className="book-by-name-header">
         <div>
-          <h3>Pending Bookings</h3>
-          <p>Review your pending booking requests and filter them by booking date.</p>
+          <h3>Approved Bookings</h3>
+          <p>Review your approved bookings and filter them by booking date.</p>
         </div>
       </div>
 
@@ -82,16 +74,15 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
         </div>
 
         {error ? <div className="availability-feedback availability-feedback-error">{error}</div> : null}
-        {notice ? <div className="availability-feedback availability-feedback-neutral">{notice}</div> : null}
       </div>
 
       {loading ? (
-        <div className="availability-feedback availability-feedback-neutral">Loading pending bookings...</div>
+        <div className="availability-feedback availability-feedback-neutral">Loading approved bookings...</div>
       ) : visibleBookings.length > 0 ? (
         <div className="availability-slot-results">
           {visibleBookings.map((booking) => (
             <article className="availability-slot-card" key={booking.booking_group_id ?? booking.booking_ids?.join("-")}>
-              <span className="availability-slot-card-label">Pending</span>
+              <span className="availability-slot-card-label">Approved</span>
               <strong>Booking Group #{booking.booking_group_id ?? "N/A"}</strong>
               <p>Purpose: {booking.purpose || "Not provided"}</p>
               <p>Date: {formatBookingDate(booking.date)}</p>
@@ -99,15 +90,12 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
               <p>Attendees: {booking.attendees ?? "N/A"}</p>
               <p>Resource: {booking.resource_name || `Resource #${booking.resource_id ?? "N/A"}`}</p>
               <p>Slots: {formatIds(booking.slots)}</p>
-              <button className="book-by-name-clear" onClick={() => handleCancelClick(booking.booking_group_id)} type="button">
-                Cancel
-              </button>
             </article>
           ))}
         </div>
       ) : (
         <div className="availability-feedback availability-feedback-neutral">
-          No pending bookings were found for this user on the selected booking date.
+          No approved bookings were found for this user on the selected booking date.
         </div>
       )}
     </div>

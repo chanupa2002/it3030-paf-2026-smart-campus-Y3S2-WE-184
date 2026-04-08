@@ -1500,6 +1500,359 @@ input { outline: none; }
   line-height: 1.6;
 }
 
+.book-by-name-card {
+  width: min(1080px, 100%);
+  gap: 20px;
+}
+
+.book-by-name-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.book-by-name-clear {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(108, 93, 248, 0.2);
+  background: rgba(108, 93, 248, 0.06);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.availability-search-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.availability-search-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.8fr);
+  gap: 16px;
+}
+
+.availability-field {
+  display: grid;
+  gap: 9px;
+}
+
+.availability-field span {
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.availability-field input,
+.availability-field textarea,
+.availability-field select {
+  min-height: 56px;
+  padding: 0 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(152, 171, 214, 0.3);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font-size: 1rem;
+  font: inherit;
+}
+
+.availability-field textarea {
+  min-height: 120px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  resize: vertical;
+}
+
+.availability-field input:focus,
+.availability-field textarea:focus,
+.availability-field select:focus {
+  outline: 2px solid rgba(108, 93, 248, 0.16);
+  border-color: rgba(108, 93, 248, 0.4);
+}
+
+.availability-slot-section {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(152, 171, 214, 0.22);
+  background:
+    radial-gradient(circle at top left, rgba(108, 93, 248, 0.08), transparent 32%),
+    rgba(246, 248, 255, 0.86);
+}
+
+.availability-slot-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.availability-slot-copy strong {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.availability-slot-copy span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.availability-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.availability-slot-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(152, 171, 214, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.availability-slot-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(108, 93, 248, 0.28);
+  box-shadow: 0 12px 20px rgba(58, 71, 104, 0.08);
+}
+
+.availability-slot-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.availability-slot-option span {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.availability-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.booking-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.booking-admin-primary,
+.booking-admin-danger {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.booking-admin-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 14px 28px rgba(108, 93, 248, 0.24);
+}
+
+.booking-admin-danger {
+  border-color: rgba(255, 87, 123, 0.2);
+  background: rgba(255, 87, 123, 0.1);
+  color: #d63a62;
+}
+
+.booking-admin-summary {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(108, 93, 248, 0.06);
+}
+
+.booking-admin-summary p {
+  margin: 0;
+  color: var(--text);
+}
+
+.availability-search-button {
+  min-width: 220px;
+}
+
+.availability-selection-summary {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.availability-selection-summary span,
+.availability-summary-card span,
+.availability-results-eyebrow,
+.availability-slot-card-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.availability-selection-summary strong {
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.availability-feedback {
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 600;
+}
+
+.availability-feedback-error {
+  border: 1px solid rgba(255, 87, 123, 0.22);
+  background: rgba(255, 87, 123, 0.08);
+  color: #c73761;
+}
+
+.availability-feedback-neutral {
+  border: 1px dashed rgba(152, 171, 214, 0.32);
+  background: rgba(244, 247, 255, 0.72);
+  color: var(--muted);
+}
+
+.availability-results {
+  display: grid;
+  gap: 18px;
+  padding-top: 4px;
+}
+
+.availability-results-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.availability-results-header h4 {
+  margin: 4px 0 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.availability-results-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.availability-results-meta span,
+.availability-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(108, 93, 248, 0.08);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.availability-status-card {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(152, 171, 214, 0.22);
+  box-shadow: 0 18px 32px rgba(32, 46, 80, 0.06);
+}
+
+.availability-status-card strong {
+  font-size: 1.18rem;
+}
+
+.availability-status-card-success {
+  background:
+    radial-gradient(circle at top right, rgba(87, 214, 154, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(247, 255, 250, 0.98), rgba(239, 251, 244, 0.98));
+  border-color: rgba(87, 214, 154, 0.28);
+}
+
+.availability-status-card-success .availability-status-badge {
+  background: rgba(45, 175, 113, 0.14);
+  color: #1a8a56;
+}
+
+.availability-status-card-danger {
+  background:
+    radial-gradient(circle at top right, rgba(255, 153, 112, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(255, 249, 246, 0.98), rgba(255, 241, 235, 0.98));
+  border-color: rgba(255, 133, 92, 0.28);
+}
+
+.availability-status-card-danger .availability-status-badge {
+  background: rgba(255, 133, 92, 0.14);
+  color: #c45a29;
+}
+
+.availability-results-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr);
+  gap: 18px;
+}
+
+.availability-summary-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(152, 171, 214, 0.22);
+  background:
+    radial-gradient(circle at top left, rgba(188, 214, 255, 0.2), transparent 34%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.availability-summary-card strong {
+  font-size: 2.3rem;
+  line-height: 1;
+}
+
+.availability-slot-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.availability-slot-card {
+  display: grid;
+  gap: 8px;
+  min-height: 148px;
+  padding: 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(152, 171, 214, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(108, 93, 248, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.98));
+  box-shadow: 0 14px 28px rgba(31, 44, 76, 0.05);
+}
+
+.availability-slot-card strong {
+  font-size: 1.18rem;
+  font-weight: 800;
+}
+
+.availability-slot-card p {
+  color: var(--muted);
+}
+
 .settings-profile-shell {
   display: grid;
 }
@@ -1599,6 +1952,77 @@ input { outline: none; }
     radial-gradient(circle at top right, rgba(109, 160, 255, 0.12), transparent 34%),
     linear-gradient(180deg, rgba(13, 22, 40, 0.98), rgba(10, 18, 31, 0.98));
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .book-by-name-clear {
+  border-color: rgba(109, 160, 255, 0.18);
+  background: rgba(109, 160, 255, 0.1);
+  color: #eef3ff;
+}
+
+:root[data-theme="dark"] .availability-field input,
+:root[data-theme="dark"] .availability-field textarea,
+:root[data-theme="dark"] .availability-field select,
+:root[data-theme="dark"] .availability-slot-option,
+:root[data-theme="dark"] .availability-summary-card,
+:root[data-theme="dark"] .availability-slot-card {
+  border-color: rgba(118, 144, 199, 0.2);
+  background: rgba(13, 22, 40, 0.94);
+}
+
+:root[data-theme="dark"] .availability-slot-section {
+  border-color: rgba(118, 144, 199, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(109, 160, 255, 0.12), transparent 32%),
+    rgba(15, 25, 44, 0.92);
+}
+
+:root[data-theme="dark"] .availability-slot-option:hover {
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .availability-feedback-error {
+  background: rgba(255, 87, 123, 0.12);
+  color: #ff9fb8;
+}
+
+:root[data-theme="dark"] .availability-feedback-neutral {
+  background: rgba(16, 27, 46, 0.92);
+}
+
+:root[data-theme="dark"] .booking-admin-danger {
+  border-color: rgba(255, 120, 148, 0.22);
+  background: rgba(255, 87, 123, 0.16);
+  color: #ff9ab0;
+}
+
+:root[data-theme="dark"] .booking-admin-summary {
+  background: rgba(109, 160, 255, 0.12);
+}
+
+:root[data-theme="dark"] .availability-results-meta span {
+  background: rgba(109, 160, 255, 0.12);
+  color: #eef3ff;
+}
+
+:root[data-theme="dark"] .availability-status-card-success {
+  background:
+    radial-gradient(circle at top right, rgba(87, 214, 154, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(11, 30, 24, 0.98), rgba(9, 24, 19, 0.98));
+}
+
+:root[data-theme="dark"] .availability-status-card-success .availability-status-badge {
+  color: #99f0c5;
+}
+
+:root[data-theme="dark"] .availability-status-card-danger {
+  background:
+    radial-gradient(circle at top right, rgba(255, 153, 112, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(41, 19, 14, 0.98), rgba(29, 14, 10, 0.98));
+}
+
+:root[data-theme="dark"] .availability-status-card-danger .availability-status-badge {
+  color: #ffb091;
 }
 
 .resources-search {
@@ -1957,6 +2381,74 @@ input { outline: none; }
   gap: 22px;
 }
 
+.admin-timetable-grid-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(152, 171, 214, 0.28);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(108, 93, 248, 0.06), transparent 24%),
+    var(--surface-strong);
+  box-shadow: 0 18px 34px rgba(31, 44, 76, 0.05);
+}
+
+.admin-timetable-grid {
+  display: grid;
+  grid-template-columns: 180px repeat(7, minmax(132px, 1fr));
+  min-width: 1160px;
+}
+
+.admin-timetable-corner,
+.admin-timetable-day-head,
+.admin-timetable-slot-head,
+.admin-timetable-cell {
+  min-height: 88px;
+  padding: 14px;
+  border-right: 1px solid rgba(152, 171, 214, 0.2);
+  border-bottom: 1px solid rgba(152, 171, 214, 0.2);
+}
+
+.admin-timetable-corner,
+.admin-timetable-day-head,
+.admin-timetable-slot-head {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--text);
+  background: rgba(108, 93, 248, 0.06);
+}
+
+.admin-timetable-cell {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--text);
+  transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.admin-timetable-cell:hover {
+  background: rgba(108, 93, 248, 0.06);
+  transform: translateY(-1px);
+}
+
+.admin-timetable-cell strong {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.admin-timetable-cell span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-timetable-cell-active {
+  background: linear-gradient(135deg, rgba(108, 93, 248, 0.14), rgba(142, 103, 255, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(108, 93, 248, 0.18);
+}
+
 .resource-management-toolbar {
   display: grid;
   grid-template-columns: minmax(280px, 1.45fr) repeat(3, minmax(150px, 0.6fr)) auto;
@@ -2064,6 +2556,36 @@ input { outline: none; }
   background:
     radial-gradient(circle at top right, rgba(109, 160, 255, 0.1), transparent 24%),
     rgba(13, 22, 40, 0.96);
+}
+
+:root[data-theme="dark"] .admin-timetable-grid-wrap {
+  border-color: rgba(118, 144, 199, 0.3);
+  background:
+    radial-gradient(circle at top right, rgba(109, 160, 255, 0.1), transparent 24%),
+    rgba(13, 22, 40, 0.96);
+}
+
+:root[data-theme="dark"] .admin-timetable-corner,
+:root[data-theme="dark"] .admin-timetable-day-head,
+:root[data-theme="dark"] .admin-timetable-slot-head {
+  background: rgba(109, 160, 255, 0.1);
+}
+
+:root[data-theme="dark"] .admin-timetable-corner,
+:root[data-theme="dark"] .admin-timetable-day-head,
+:root[data-theme="dark"] .admin-timetable-slot-head,
+:root[data-theme="dark"] .admin-timetable-cell {
+  border-right-color: rgba(118, 144, 199, 0.2);
+  border-bottom-color: rgba(118, 144, 199, 0.2);
+}
+
+:root[data-theme="dark"] .admin-timetable-cell:hover {
+  background: rgba(109, 160, 255, 0.08);
+}
+
+:root[data-theme="dark"] .admin-timetable-cell-active {
+  background: linear-gradient(135deg, rgba(109, 160, 255, 0.16), rgba(88, 118, 194, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(109, 160, 255, 0.16);
 }
 
 .resource-management-table {
@@ -2557,6 +3079,19 @@ input { outline: none; }
   .resource-filter-menu {
     width: min(100%, 320px);
   }
+  .availability-search-grid,
+  .availability-results-body {
+    grid-template-columns: 1fr;
+  }
+  .availability-slot-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .availability-slot-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-timetable-grid {
+    min-width: 980px;
+  }
   .resource-management-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2611,6 +3146,35 @@ input { outline: none; }
   .workspace-add-button,
   .workspace-search {
     width: 100%;
+  }
+  .book-resource-tabs,
+  .bookings-tabs {
+    grid-template-columns: 1fr;
+  }
+  .book-resource-tab + .book-resource-tab {
+    border-left: 1px solid rgba(108, 93, 248, 0.24);
+    border-top: 0;
+  }
+  .book-by-name-header,
+  .availability-actions,
+  .availability-results-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .availability-selection-summary {
+    justify-items: start;
+    text-align: left;
+  }
+  .availability-slot-grid,
+  .availability-slot-results {
+    grid-template-columns: 1fr;
+  }
+  .availability-search-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .admin-timetable-grid {
+    min-width: 860px;
   }
   .resource-card {
     min-height: auto;

@@ -82,61 +82,13 @@ public class BookingSlotService {
         }
 
         @Transactional(readOnly = true)
-        public List<PendingBookingResponse> viewPendingBookings(LocalDate createdDate) {
-                String sql = """
-                                SELECT
-                                    COALESCE(rb.booking_group_id, rb.booking_id) AS booking_group_id,
-                                    rb.booking_id,
-                                    rb.created_at,
-                                    rb.attendees,
-                                    rb.date,
-                                    rb.timeslot_id,
-                                    ds.slot,
-                                    rb.purpose,
-                                    rb.status,
-                                    rb.resource_id,
-                                    rb.user_id
-                                FROM "Resource_booking" rb
-                                INNER JOIN "Ds_slot" ds ON ds.slot_id = rb.timeslot_id
-                                WHERE CAST(rb.created_at AS DATE) = ?
-                                  AND LOWER(TRIM(COALESCE(rb.status, ''))) = 'pending'
-                                ORDER BY COALESCE(rb.booking_group_id, rb.booking_id) DESC, rb.booking_id ASC
-                                """;
+        public List<PendingBookingResponse> viewPendingBookings() {
+                return viewBookingsByStatus("pending");
+        }
 
-                List<PendingBookingRow> rows = jdbcTemplate.query(
-                                sql,
-                                (rs, rowNum) -> new PendingBookingRow(
-                                                rs.getLong("booking_group_id"),
-                                                rs.getLong("booking_id"),
-                                                rs.getObject("created_at", OffsetDateTime.class),
-                                                (Long) rs.getObject("attendees"),
-                                                rs.getObject("date", LocalDate.class),
-                                                rs.getLong("slot"),
-                                                rs.getString("purpose"),
-                                                rs.getString("status"),
-                                                (Long) rs.getObject("resource_id"),
-                                                (Long) rs.getObject("user_id")),
-                                createdDate);
-
-                Map<Long, PendingBookingAccumulator> grouped = new LinkedHashMap<>();
-                for (PendingBookingRow row : rows) {
-                        grouped.computeIfAbsent(
-                                        row.bookingGroupId(),
-                                        ignored -> new PendingBookingAccumulator(
-                                                        row.bookingGroupId(),
-                                                        row.createdAt(),
-                                                        row.attendees(),
-                                                        row.date(),
-                                                        row.purpose(),
-                                                        row.status(),
-                                                        row.resourceId(),
-                                                        row.userId()))
-                                        .add(row.bookingId(), row.slot());
-                }
-
-                return grouped.values().stream()
-                                .map(PendingBookingAccumulator::toResponse)
-                                .toList();
+        @Transactional(readOnly = true)
+        public List<PendingBookingResponse> viewApprovedBookings() {
+                return viewBookingsByStatus("approved");
         }
 
         @Transactional(readOnly = true)
@@ -400,9 +352,10 @@ public class BookingSlotService {
         public RejectBookingResponse rejectBooking(RejectBookingRequest request) {
                 String rejectReason = request.rejectReason().trim();
 
-                RejectedBookingRow booking = jdbcTemplate.query(
+                List<RejectedBookingRow> bookings = jdbcTemplate.query(
                                 """
                                                 SELECT
+                                                        rb.booking_group_id,
                                                         rb.booking_id,
                                                         rb.created_at,
                                                         rb.attendees,
@@ -413,11 +366,11 @@ public class BookingSlotService {
                                                         rb.resource_id,
                                                         rb.user_id
                                                 FROM "Resource_booking" rb
-                                                WHERE rb.booking_id = ?
-                                                LIMIT 1
+                                                WHERE rb.booking_group_id = ?
+                                                ORDER BY rb.booking_id ASC
                                                 """,
-                                rs -> rs.next()
-                                                ? new RejectedBookingRow(
+                                (rs, rowNum) -> new RejectedBookingRow(
+                                                                rs.getLong("booking_group_id"),
                                                                 rs.getLong("booking_id"),
                                                                 rs.getObject("created_at", OffsetDateTime.class),
                                                                 (Long) rs.getObject("attendees"),
@@ -426,60 +379,65 @@ public class BookingSlotService {
                                                                 rs.getString("purpose"),
                                                                 rs.getString("status"),
                                                                 (Long) rs.getObject("resource_id"),
-                                                                (Long) rs.getObject("user_id"))
-                                                : null,
-                                request.bookingId());
+                                                                (Long) rs.getObject("user_id")),
+                                request.bookingGroupId());
 
-                if (booking == null) {
+                if (bookings.isEmpty()) {
                         throw new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "No booking found for booking_id '" + request.bookingId() + "'.");
+                                        "No booking group found for booking_group_id '" + request.bookingGroupId() + "'.");
                 }
 
-                jdbcTemplate.update(
-                                """
-                                                INSERT INTO "Rejected_Resource_booking"
-                                                        (created_at, attendees, date, timeslot_id, purpose, status, resource_id, user_id, reject_reason)
-                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                                """,
-                                booking.createdAt(),
-                                booking.attendees(),
-                                booking.date(),
-                                booking.timeslotId(),
-                                booking.purpose(),
-                                "rejected",
-                                booking.resourceId(),
-                                booking.userId(),
-                                rejectReason);
+                for (RejectedBookingRow booking : bookings) {
+                        jdbcTemplate.update(
+                                        """
+                                                        INSERT INTO "Rejected_Resource_booking"
+                                                                (booking_id, booking_group_id, created_at, attendees, date, timeslot_id, purpose, status, resource_id, user_id, reject_reason)
+                                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                        """,
+                                        booking.bookingId(),
+                                        booking.bookingGroupId(),
+                                        booking.createdAt(),
+                                        booking.attendees(),
+                                        booking.date(),
+                                        booking.timeslotId(),
+                                        booking.purpose(),
+                                        "rejected",
+                                        booking.resourceId(),
+                                        booking.userId(),
+                                        rejectReason);
+                }
 
                 int deletedRows = jdbcTemplate.update(
                                 """
                                                 DELETE FROM "Resource_booking"
-                                                WHERE booking_id = ?
+                                                WHERE booking_group_id = ?
                                                 """,
-                                request.bookingId());
+                                request.bookingGroupId());
 
-                if (deletedRows == 0) {
+                if (deletedRows != bookings.size()) {
                         throw new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "No booking found for booking_id '" + request.bookingId() + "'.");
+                                        "No booking group found for booking_group_id '" + request.bookingGroupId() + "'.");
                 }
 
+                Long userId = bookings.get(0).userId();
                 jdbcTemplate.update(
                                 """
                                                 INSERT INTO "Notifications" (notification_type, notification, user_id)
                                                 VALUES (?, ?, ?)
                                                 """,
                                 "Booking",
-                                "Your booking request was rejected. Reason: " + rejectReason,
-                                booking.userId());
+                                "Your booking group " + request.bookingGroupId() + " was rejected. Reason: " + rejectReason,
+                                userId);
 
                 return new RejectBookingResponse(
-                                request.bookingId(),
-                                "Booking rejected, archived, and user notified successfully.");
+                                request.bookingGroupId(),
+                                "Booking group rejected, archived, and user notified successfully.");
         }
 
         private record RejectedBookingRow(
+                        Long bookingGroupId,
                         Long bookingId,
                         OffsetDateTime createdAt,
                         Long attendees,
@@ -698,6 +656,7 @@ public class BookingSlotService {
                         String purpose,
                         String status,
                         Long resourceId,
+                        String resourceName,
                         Long userId) {
         }
 
@@ -709,6 +668,7 @@ public class BookingSlotService {
                 private final String purpose;
                 private final String status;
                 private final Long resourceId;
+                private final String resourceName;
                 private final Long userId;
                 private final List<Long> bookingIds = new ArrayList<>();
                 private final List<Long> slots = new ArrayList<>();
@@ -721,6 +681,7 @@ public class BookingSlotService {
                                 String purpose,
                                 String status,
                                 Long resourceId,
+                                String resourceName,
                                 Long userId) {
                         this.bookingGroupId = bookingGroupId;
                         this.createdAt = createdAt;
@@ -729,6 +690,7 @@ public class BookingSlotService {
                         this.purpose = purpose;
                         this.status = status;
                         this.resourceId = resourceId;
+                        this.resourceName = resourceName;
                         this.userId = userId;
                 }
 
@@ -749,7 +711,68 @@ public class BookingSlotService {
                                         purpose,
                                         status,
                                         resourceId,
+                                        resourceName,
                                         userId);
                 }
+        }
+
+        private List<PendingBookingResponse> viewBookingsByStatus(String status) {
+                String sql = """
+                                SELECT
+                                    COALESCE(rb.booking_group_id, rb.booking_id) AS booking_group_id,
+                                    rb.booking_id,
+                                    rb.created_at,
+                                    rb.attendees,
+                                    rb.date,
+                                    rb.timeslot_id,
+                                    ds.slot,
+                                    rb.purpose,
+                                    rb.status,
+                                    rb.resource_id,
+                                    r.name AS resource_name,
+                                    rb.user_id
+                                FROM "Resource_booking" rb
+                                INNER JOIN "Ds_slot" ds ON ds.slot_id = rb.timeslot_id
+                                LEFT JOIN "Resource" r ON r.id = rb.resource_id
+                                WHERE LOWER(TRIM(COALESCE(rb.status, ''))) = LOWER(TRIM(?))
+                                ORDER BY COALESCE(rb.booking_group_id, rb.booking_id) DESC, rb.booking_id ASC
+                                """;
+
+                List<PendingBookingRow> rows = jdbcTemplate.query(
+                                sql,
+                                (rs, rowNum) -> new PendingBookingRow(
+                                                rs.getLong("booking_group_id"),
+                                                rs.getLong("booking_id"),
+                                                rs.getObject("created_at", OffsetDateTime.class),
+                                                (Long) rs.getObject("attendees"),
+                                                rs.getObject("date", LocalDate.class),
+                                                rs.getLong("slot"),
+                                                rs.getString("purpose"),
+                                                rs.getString("status"),
+                                                (Long) rs.getObject("resource_id"),
+                                                rs.getString("resource_name"),
+                                                (Long) rs.getObject("user_id")),
+                                status);
+
+                Map<Long, PendingBookingAccumulator> grouped = new LinkedHashMap<>();
+                for (PendingBookingRow row : rows) {
+                        grouped.computeIfAbsent(
+                                        row.bookingGroupId(),
+                                        ignored -> new PendingBookingAccumulator(
+                                                        row.bookingGroupId(),
+                                                        row.createdAt(),
+                                                        row.attendees(),
+                                                        row.date(),
+                                                        row.purpose(),
+                                                        row.status(),
+                                                        row.resourceId(),
+                                                        row.resourceName(),
+                                                        row.userId()))
+                                        .add(row.bookingId(), row.slot());
+                }
+
+                return grouped.values().stream()
+                                .map(PendingBookingAccumulator::toResponse)
+                                .toList();
         }
 }
