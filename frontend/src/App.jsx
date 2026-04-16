@@ -6,7 +6,10 @@ import BookByNamePanel from "./components/booking/BookByNamePanel";
 import BookByTypePanel from "./components/booking/BookByTypePanel";
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/$/,
+  "",
+);
 const SESSION_KEY = "smart-campus.session";
 const THEME_KEY = "smart-campus.theme";
 
@@ -47,9 +50,21 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search organizations...",
     buttonLabel: "Add Organization",
     items: [
-      { code: "C1", name: "Comp 1", description: "Placeholder module ready for your first real screen." },
-      { code: "C2", name: "Comp 2", description: "Placeholder module ready to be replaced later." },
-      { code: "C3", name: "Comp 3", description: "Placeholder module ready for future integration." },
+      {
+        code: "C1",
+        name: "Comp 1",
+        description: "Placeholder module ready for your first real screen.",
+      },
+      {
+        code: "C2",
+        name: "Comp 2",
+        description: "Placeholder module ready to be replaced later.",
+      },
+      {
+        code: "C3",
+        name: "Comp 3",
+        description: "Placeholder module ready for future integration.",
+      },
     ],
   },
   {
@@ -63,7 +78,11 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search resources...",
     buttonLabel: "Resources",
     items: [
-      { code: "RS", name: "Campus Resources", description: "Facility resources loaded from the backend." },
+      {
+        code: "RS",
+        name: "Campus Resources",
+        description: "Facility resources loaded from the backend.",
+      },
     ],
   },
   {
@@ -77,7 +96,11 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search bookings...",
     buttonLabel: "Bookings",
     items: [
-      { code: "BK", name: "My Bookings", description: "Bookings module placeholder." },
+      {
+        code: "BK",
+        name: "My Bookings",
+        description: "Bookings module placeholder.",
+      },
     ],
   },
   {
@@ -91,7 +114,11 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search resources to book...",
     buttonLabel: "Book Resource",
     items: [
-      { code: "BR", name: "Book Resource", description: "Resource booking module placeholder." },
+      {
+        code: "BR",
+        name: "Book Resource",
+        description: "Resource booking module placeholder.",
+      },
     ],
   },
   {
@@ -105,7 +132,11 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search tickets...",
     buttonLabel: "My Tickets",
     items: [
-      { code: "MT", name: "My Tickets", description: "Tickets module placeholder." },
+      {
+        code: "MT",
+        name: "My Tickets",
+        description: "Tickets module placeholder.",
+      },
     ],
   },
   {
@@ -119,7 +150,11 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search raised tickets...",
     buttonLabel: "Raise Ticket",
     items: [
-      { code: "RT", name: "Raise Ticket", description: "Raise ticket module placeholder." },
+      {
+        code: "RT",
+        name: "Raise Ticket",
+        description: "Raise ticket module placeholder.",
+      },
     ],
   },
   {
@@ -133,9 +168,21 @@ const ACADEMIC_SECTIONS = [
     searchPlaceholder: "Search settings...",
     buttonLabel: "Add Setting",
     items: [
-      { code: "PF", name: "Profile", description: "User profile settings placeholder row." },
-      { code: "TH", name: "Theme", description: "Theme and appearance settings placeholder row." },
-      { code: "NT", name: "Notifications", description: "Notification settings placeholder row." },
+      {
+        code: "PF",
+        name: "Profile",
+        description: "User profile settings placeholder row.",
+      },
+      {
+        code: "TH",
+        name: "Theme",
+        description: "Theme and appearance settings placeholder row.",
+      },
+      {
+        code: "NT",
+        name: "Notifications",
+        description: "Notification settings placeholder row.",
+      },
     ],
   },
 ];
@@ -203,7 +250,7 @@ const ADMIN_SECTIONS = [
   {
     id: "admin-users",
     label: "Users",
-    view: "empty",
+    view: "admin-users",
     iconSrc: "/assets/icons/user.png",
     placement: "quick",
     title: "Users",
@@ -265,7 +312,7 @@ const TECHNICIAN_SECTIONS = [
   {
     id: "technician-tickets",
     label: "Tickets",
-    view: "empty",
+    view: "my-tickets",
     iconSrc: "/assets/icons/my_tickets.png",
     placement: "quick",
     title: "Tickets",
@@ -318,7 +365,9 @@ function decodeJwt(token) {
 function getInitialTheme() {
   const stored = window.localStorage.getItem(THEME_KEY);
   if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function readSession() {
@@ -375,10 +424,98 @@ function getMessage(payload) {
   return "Unable to complete the request right now.";
 }
 
+function isStrongPassword(value) {
+  if (!value) return false;
+  if (value.length < 8 || value.length > 100) return false;
+  const hasLower = /[a-z]/.test(value);
+  const hasUpper = /[A-Z]/.test(value);
+  const hasDigit = /\d/.test(value);
+  return hasLower && hasUpper && hasDigit;
+}
+
+function getNotificationStorageKey(userId) {
+  return `smart-campus.notifications.dismissed.${userId}`;
+}
+
+function getNotificationSeenKey(userId) {
+  return `smart-campus.notifications.seen.${userId}`;
+}
+
+function readDismissedNotificationIds(userId) {
+  if (!userId) return [];
+
+  try {
+    const raw = window.localStorage.getItem(getNotificationStorageKey(userId));
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed
+          .map((value) => String(value))
+          .filter((value) => value.trim() !== "")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeDismissedNotificationIds(userId, ids) {
+  if (!userId) return;
+  window.localStorage.setItem(
+    getNotificationStorageKey(userId),
+    JSON.stringify(ids),
+  );
+}
+
+function readNotificationSeenAt(userId) {
+  if (!userId) return 0;
+
+  try {
+    const raw = window.localStorage.getItem(getNotificationSeenKey(userId));
+    if (!raw) return 0;
+
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function storeNotificationSeenAt(userId, timestamp) {
+  if (!userId) return;
+  window.localStorage.setItem(
+    getNotificationSeenKey(userId),
+    String(timestamp),
+  );
+}
+
+function toNotificationTimestamp(value) {
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function formatNotificationTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function createSections(group) {
   const config = DASHBOARDS[group];
   const baseSections =
-    group === "admin" ? ADMIN_SECTIONS : group === "technician" ? TECHNICIAN_SECTIONS : ACADEMIC_SECTIONS;
+    group === "admin"
+      ? ADMIN_SECTIONS
+      : group === "technician"
+        ? TECHNICIAN_SECTIONS
+        : ACADEMIC_SECTIONS;
   return baseSections.map((section, index) => ({
     ...section,
     title: index === 0 ? config.title : section.title,
@@ -409,7 +546,11 @@ function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [session, setSession] = useState(readSession);
   const [route, setRoute] = useState(readRoute);
-  const [active, setActive] = useState({ academic: "dashboard", technician: "dashboard", admin: "dashboard" });
+  const [active, setActive] = useState({
+    academic: "dashboard",
+    technician: "dashboard",
+    admin: "dashboard",
+  });
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -450,7 +591,8 @@ function App() {
     ? sections.find((section) => section.id === active[group]) || sections[0]
     : null;
 
-  const toggleTheme = () => setTheme((value) => (value === "dark" ? "light" : "dark"));
+  const toggleTheme = () =>
+    setTheme((value) => (value === "dark" ? "light" : "dark"));
 
   const handleLoginSuccess = (response) => {
     const jwt = decodeJwt(response?.token);
@@ -458,7 +600,9 @@ function App() {
     const groupName = resolveGroup(roleName);
 
     if (!groupName) {
-      throw new Error("Login worked, but this frontend does not yet have a dashboard mapped for that role.");
+      throw new Error(
+        "Login worked, but this frontend does not yet have a dashboard mapped for that role.",
+      );
     }
 
     const nextSession = {
@@ -484,7 +628,13 @@ function App() {
   };
 
   if (!session || !group || !config) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} onThemeToggle={toggleTheme} theme={theme} />;
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onThemeToggle={toggleTheme}
+        theme={theme}
+      />
+    );
   }
 
   return (
@@ -493,7 +643,9 @@ function App() {
       config={config}
       group={group}
       onLogout={logout}
-      onSectionChange={(sectionId) => setActive((value) => ({ ...value, [group]: sectionId }))}
+      onSectionChange={(sectionId) =>
+        setActive((value) => ({ ...value, [group]: sectionId }))
+      }
       onThemeToggle={toggleTheme}
       sections={sections}
       token={session.token}
@@ -504,16 +656,99 @@ function App() {
 }
 
 function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
+  const RESET_CODE_TTL_SECONDS = 10 * 60;
+  const MAX_CODE_ATTEMPTS = 3;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
+
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetStep, setResetStep] = useState("email");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetInfo, setResetInfo] = useState("");
+  const [remainingAttempts, setRemainingAttempts] = useState(MAX_CODE_ATTEMPTS);
+  const [resetExpiresAt, setResetExpiresAt] = useState(0);
+  const [resetSecondsLeft, setResetSecondsLeft] = useState(0);
+
+  const openResetModal = () => {
+    setIsResetModalOpen(true);
+    setResetStep("email");
+    setResetEmail(email.trim());
+    setResetCode("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetError("");
+    setResetInfo("");
+    setRemainingAttempts(MAX_CODE_ATTEMPTS);
+    setResetExpiresAt(0);
+    setResetSecondsLeft(0);
+  };
+
+  const closeResetModal = () => {
+    setIsResetModalOpen(false);
+    setResetStep("email");
+    setResetCode("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetError("");
+    setResetInfo("");
+    setRemainingAttempts(MAX_CODE_ATTEMPTS);
+    setResetExpiresAt(0);
+    setResetSecondsLeft(0);
+  };
+
+  const restartResetProcess = (
+    message = "Your reset session ended. Please request a new code.",
+  ) => {
+    setResetStep("email");
+    setResetCode("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setResetError("");
+    setResetInfo(message);
+    setRemainingAttempts(MAX_CODE_ATTEMPTS);
+    setResetExpiresAt(0);
+    setResetSecondsLeft(0);
+  };
+
+  useEffect(() => {
+    if (!isResetModalOpen || resetExpiresAt <= 0) {
+      return undefined;
+    }
+
+    const tick = () => {
+      const nextSeconds = Math.max(
+        0,
+        Math.floor((resetExpiresAt - Date.now()) / 1000),
+      );
+      setResetSecondsLeft(nextSeconds);
+
+      if (nextSeconds === 0) {
+        restartResetProcess(
+          "The code expired. Please request a new password reset code.",
+        );
+      }
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [isResetModalOpen, resetExpiresAt]);
 
   const submit = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setLoginNotice("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -530,6 +765,186 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
       setError(requestError.message || "Login failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const submitResetEmail = async (event) => {
+    event.preventDefault();
+    const normalizedEmail = resetEmail.trim();
+
+    if (!normalizedEmail) {
+      setResetError("Email is required.");
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError("");
+    setResetInfo("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/password-reset/request`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail }),
+        },
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(getMessage(payload));
+
+      setResetEmail(normalizedEmail);
+      setResetStep("code");
+      setResetCode("");
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+      setRemainingAttempts(MAX_CODE_ATTEMPTS);
+      setResetExpiresAt(Date.now() + RESET_CODE_TTL_SECONDS * 1000);
+      setResetSecondsLeft(RESET_CODE_TTL_SECONDS);
+      setResetInfo(
+        "A verification code was sent to your email if it is registered.",
+      );
+    } catch (requestError) {
+      setResetError(requestError.message || "Unable to request reset code.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const submitResetCode = async (event) => {
+    event.preventDefault();
+
+    if (resetSecondsLeft <= 0) {
+      restartResetProcess(
+        "The code expired. Please request a new password reset code.",
+      );
+      return;
+    }
+
+    if (remainingAttempts <= 0) {
+      restartResetProcess(
+        "You reached the maximum number of attempts. Please request a new code.",
+      );
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError("");
+    setResetInfo("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/password-reset/verify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: resetEmail.trim(),
+            code: resetCode.trim(),
+          }),
+        },
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(getMessage(payload));
+
+      if (payload?.valid) {
+        setResetStep("password");
+        setResetError("");
+        setResetInfo("Code verified. Enter your new password.");
+        return;
+      }
+
+      const nextAttempts = remainingAttempts - 1;
+      setRemainingAttempts(nextAttempts);
+
+      if (nextAttempts <= 0) {
+        restartResetProcess(
+          "You entered an invalid code 3 times. Please request a new code.",
+        );
+        return;
+      }
+
+      setResetError(
+        payload?.message ||
+          `Invalid code. ${nextAttempts} attempt(s) remaining.`,
+      );
+    } catch (requestError) {
+      const nextAttempts = remainingAttempts - 1;
+      setRemainingAttempts(nextAttempts);
+
+      if (nextAttempts <= 0) {
+        restartResetProcess(
+          "You entered an invalid code 3 times. Please request a new code.",
+        );
+        return;
+      }
+
+      setResetError(
+        requestError.message ||
+          `Invalid code. ${nextAttempts} attempt(s) remaining.`,
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const submitResetPassword = async (event) => {
+    event.preventDefault();
+
+    if (resetSecondsLeft <= 0) {
+      restartResetProcess(
+        "The code expired. Please request a new password reset code.",
+      );
+      return;
+    }
+
+    if (!isStrongPassword(resetNewPassword)) {
+      setResetError(
+        "Password must be 8-100 chars and include uppercase, lowercase, and a number.",
+      );
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError("Password confirmation does not match.");
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError("");
+    setResetInfo("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/password-reset/confirm`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: resetEmail.trim(),
+            code: resetCode.trim(),
+            newPassword: resetNewPassword,
+          }),
+        },
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(getMessage(payload));
+
+      closeResetModal();
+      setPassword("");
+      setLoginNotice(
+        "Password reset successful. Please sign in with your new password.",
+      );
+    } catch (requestError) {
+      restartResetProcess(
+        requestError.message ||
+          "Reset session is no longer valid. Please request a new code.",
+      );
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -572,20 +987,35 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
                     type={showPassword ? "text" : "password"}
                     value={password}
                   />
-                  <button className="icon-button" onClick={() => setShowPassword((value) => !value)} type="button">
+                  <button
+                    className="icon-button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    type="button"
+                  >
                     {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
                 <div className="field-action-row">
-                  <button className="text-button field-link" disabled type="button">
+                  <button
+                    className="text-button field-link"
+                    onClick={openResetModal}
+                    type="button"
+                  >
                     Forgot your password?
                   </button>
                 </div>
               </label>
 
               {error ? <p className="form-error">{error}</p> : null}
+              {loginNotice ? (
+                <p className="form-success">{loginNotice}</p>
+              ) : null}
 
-              <button className="primary-button" disabled={loading} type="submit">
+              <button
+                className="primary-button"
+                disabled={loading}
+                type="submit"
+              >
                 {loading ? "Signing in..." : "Login"}
               </button>
 
@@ -607,21 +1037,294 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
           </div>
         </section>
       </div>
+
+      {isResetModalOpen ? (
+        <div className="modal-backdrop">
+          <div
+            className="modal-card forgot-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgot-password-title"
+          >
+            <button
+              className="modal-close"
+              onClick={closeResetModal}
+              type="button"
+            >
+              <span aria-hidden="true">x</span>
+            </button>
+
+            <div className="modal-header">
+              <h3 id="forgot-password-title">Forgot Password</h3>
+              <p>
+                {resetStep === "email"
+                  ? "Enter your registered email to receive a reset code."
+                  : resetStep === "code"
+                    ? "Enter the code sent to your email."
+                    : "Set a new password for your account."}
+              </p>
+            </div>
+
+            <div className="forgot-meta-row">
+              <span
+                className={`forgot-step-chip ${resetStep === "email" ? "forgot-step-chip-active" : ""}`}
+              >
+                1. Email
+              </span>
+              <span
+                className={`forgot-step-chip ${resetStep === "code" ? "forgot-step-chip-active" : ""}`}
+              >
+                2. Code
+              </span>
+              <span
+                className={`forgot-step-chip ${resetStep === "password" ? "forgot-step-chip-active" : ""}`}
+              >
+                3. Password
+              </span>
+            </div>
+
+            {(resetStep === "code" || resetStep === "password") &&
+            resetSecondsLeft > 0 ? (
+              <div className="forgot-timer-row">
+                <span>Code expires in</span>
+                <strong>
+                  {String(Math.floor(resetSecondsLeft / 60)).padStart(2, "0")}:
+                  {String(resetSecondsLeft % 60).padStart(2, "0")}
+                </strong>
+                <span>Attempts left: {remainingAttempts}</span>
+              </div>
+            ) : null}
+
+            {resetStep === "email" ? (
+              <form
+                className="auth-form forgot-form"
+                onSubmit={submitResetEmail}
+              >
+                <label className="modal-field modal-field-full">
+                  <span>Email</span>
+                  <input
+                    autoComplete="email"
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    required
+                    type="email"
+                    value={resetEmail}
+                  />
+                </label>
+
+                {resetError ? (
+                  <div className="modal-inline-error">{resetError}</div>
+                ) : null}
+                {resetInfo ? (
+                  <div className="forgot-inline-info">{resetInfo}</div>
+                ) : null}
+
+                <div className="modal-actions">
+                  <button
+                    className="modal-secondary-button"
+                    onClick={closeResetModal}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="modal-primary-button"
+                    disabled={resetLoading}
+                    type="submit"
+                  >
+                    {resetLoading ? "Sending..." : "Send Code"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {resetStep === "code" ? (
+              <form
+                className="auth-form forgot-form"
+                onSubmit={submitResetCode}
+              >
+                <label className="modal-field modal-field-full">
+                  <span>Verification Code</span>
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    onChange={(event) =>
+                      setResetCode(event.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Enter 6-digit code"
+                    required
+                    type="text"
+                    value={resetCode}
+                  />
+                </label>
+
+                {resetError ? (
+                  <div className="modal-inline-error">{resetError}</div>
+                ) : null}
+                {resetInfo ? (
+                  <div className="forgot-inline-info">{resetInfo}</div>
+                ) : null}
+
+                <div className="modal-actions">
+                  <button
+                    className="modal-secondary-button"
+                    onClick={() => restartResetProcess()}
+                    type="button"
+                  >
+                    Start Over
+                  </button>
+                  <button
+                    className="modal-primary-button"
+                    disabled={resetLoading || resetCode.length !== 6}
+                    type="submit"
+                  >
+                    {resetLoading ? "Verifying..." : "Verify Code"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {resetStep === "password" ? (
+              <form
+                className="auth-form forgot-form"
+                onSubmit={submitResetPassword}
+              >
+                <label className="modal-field modal-field-full">
+                  <span>New Password</span>
+                  <input
+                    autoComplete="new-password"
+                    onChange={(event) =>
+                      setResetNewPassword(event.target.value)
+                    }
+                    placeholder="Enter new password"
+                    required
+                    type="password"
+                    value={resetNewPassword}
+                  />
+                </label>
+
+                <label className="modal-field modal-field-full">
+                  <span>Confirm Password</span>
+                  <input
+                    autoComplete="new-password"
+                    onChange={(event) =>
+                      setResetConfirmPassword(event.target.value)
+                    }
+                    placeholder="Confirm new password"
+                    required
+                    type="password"
+                    value={resetConfirmPassword}
+                  />
+                </label>
+
+                <p className="forgot-password-hint">
+                  Use 8-100 characters with at least one uppercase letter, one
+                  lowercase letter, and one number.
+                </p>
+
+                {resetError ? (
+                  <div className="modal-inline-error">{resetError}</div>
+                ) : null}
+                {resetInfo ? (
+                  <div className="forgot-inline-info">{resetInfo}</div>
+                ) : null}
+
+                <div className="modal-actions">
+                  <button
+                    className="modal-secondary-button"
+                    onClick={() => restartResetProcess()}
+                    type="button"
+                  >
+                    Restart
+                  </button>
+                  <button
+                    className="modal-primary-button"
+                    disabled={resetLoading}
+                    type="submit"
+                  >
+                    {resetLoading ? "Resetting..." : "Reset Password"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
 
-function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThemeToggle, sections, theme, token, user }) {
+function DashboardPage({
+  activeSection,
+  group,
+  onLogout,
+  onSectionChange,
+  onThemeToggle,
+  sections,
+  theme,
+  token,
+  user,
+}) {
   const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
   );
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState([]);
+  const [notificationSeenAt, setNotificationSeenAt] = useState(0);
   const notificationsRef = useRef(null);
 
   useEffect(() => {
+    document.body.setAttribute("data-dashboard-group", group || "");
+    return () => {
+      document.body.removeAttribute("data-dashboard-group");
+    };
+  }, [group]);
+
+  useEffect(() => {
+    if (group === "admin") {
+      return undefined;
+    }
+
+    const neutralizeBackdrops = () => {
+      window.document.querySelectorAll(".modal-backdrop").forEach((element) => {
+        element.style.setProperty("display", "none", "important");
+        element.style.setProperty("pointer-events", "none", "important");
+      });
+    };
+
+    neutralizeBackdrops();
+
+    const observer = new MutationObserver(() => {
+      neutralizeBackdrops();
+    });
+
+    observer.observe(window.document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+
+    return () => observer.disconnect();
+  }, [group]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
-      setTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setTime(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      );
     }, 1000);
 
     return () => window.clearInterval(timer);
@@ -633,15 +1336,152 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
   }, [activeSection?.id]);
 
   useEffect(() => {
+    const userId = user?.userId;
+    if (!userId) {
+      setNotifications([]);
+      setDismissedNotificationIds([]);
+      setNotificationSeenAt(0);
+      return;
+    }
+
+    setDismissedNotificationIds(readDismissedNotificationIds(userId));
+    setNotificationSeenAt(readNotificationSeenAt(userId));
+  }, [user?.userId]);
+
+  useEffect(() => {
+    const userId = user?.userId;
+    if (!token || !userId) {
+      setNotifications([]);
+      setNotificationsLoading(false);
+      setNotificationsError("");
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadNotifications() {
+      setNotificationsLoading(true);
+      setNotificationsError("");
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/notifications/users/${userId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+
+        const payload = await response.json().catch(() => []);
+        if (!response.ok) {
+          throw new Error(getMessage(payload));
+        }
+
+        const nextNotifications = (Array.isArray(payload) ? payload : [])
+          .filter((notification) => notification?.userId === userId)
+          .sort((left, right) => {
+            const createdAtDelta =
+              toNotificationTimestamp(right.createdAt) -
+              toNotificationTimestamp(left.createdAt);
+            if (createdAtDelta !== 0) return createdAtDelta;
+            return (
+              (Number(right.notificationId) || 0) -
+              (Number(left.notificationId) || 0)
+            );
+          });
+
+        setNotifications(nextNotifications);
+      } catch (requestError) {
+        if (requestError.name === "AbortError") {
+          return;
+        }
+
+        setNotifications([]);
+        setNotificationsError(
+          requestError.message || "Unable to load notifications right now.",
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setNotificationsLoading(false);
+        }
+      }
+    }
+
+    loadNotifications();
+    const pollId = window.setInterval(loadNotifications, 5000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(pollId);
+    };
+  }, [token, user?.userId]);
+
+  const visibleNotifications = notifications.filter(
+    (notification) =>
+      !dismissedNotificationIds.includes(String(notification.notificationId)),
+  );
+
+  const unreadNotificationCount = visibleNotifications.filter(
+    (notification) =>
+      toNotificationTimestamp(notification.createdAt) > notificationSeenAt,
+  ).length;
+
+  const dismissNotification = (notificationId) => {
+    if (notificationId == null) return;
+
+    setDismissedNotificationIds((current) => {
+      const normalizedId = String(notificationId);
+      const next = current.includes(normalizedId)
+        ? current
+        : [...current, normalizedId];
+      if (user?.userId) {
+        storeDismissedNotificationIds(user.userId, next);
+      }
+      return next;
+    });
+  };
+
+  const openNotificationsPanel = () => {
+    setIsProfileMenuOpen(false);
+    setIsNotificationsOpen((value) => {
+      const next = !value;
+      if (next && user?.userId) {
+        const now = Date.now();
+        setNotificationSeenAt(now);
+        storeNotificationSeenAt(user.userId, now);
+      }
+      return next;
+    });
+  };
+
+  const openTicketFromNotification = () => {
+    const ticketSection = sections.find(
+      (section) => section.view === "my-tickets",
+    );
+    if (ticketSection) {
+      onSectionChange(ticketSection.id);
+    }
+
+    setIsNotificationsOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isNotificationsOpen) {
+      return undefined;
+    }
+
     const handlePointerDown = (event) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target)
+      ) {
         setIsNotificationsOpen(false);
       }
     };
 
     window.addEventListener("mousedown", handlePointerDown);
     return () => window.removeEventListener("mousedown", handlePointerDown);
-  }, []);
+  }, [isNotificationsOpen]);
 
   const greeting = getGreeting();
   const orderedSections = sections;
@@ -651,7 +1491,9 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
   const shouldShowMyBookings = activeView === "my-bookings";
   const shouldShowBookResource = activeView === "book-resource";
   const shouldShowMyTickets = activeView === "my-tickets";
-  const shouldShowAdminResourceManagement = activeView === "admin-resource-management";
+  const shouldShowAdminResourceManagement =
+    activeView === "admin-resource-management";
+  const shouldShowAdminUsers = activeView === "admin-users";
   const shouldShowAdminBookings = activeView === "admin-bookings";
   const shouldShowAdminTimetable = activeView === "admin-timetable";
   const shouldShowSettingsProfile = activeSection?.id === "settings";
@@ -662,7 +1504,7 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
       : activeSection?.label || "Dashboard";
 
   return (
-    <main className="dashboard-page">
+    <main className={`dashboard-page dashboard-${group}`}>
       <aside className="sidebar">
         <div className="sidebar-brandbar">
           <div className="sidebar-brandbar-left">
@@ -716,14 +1558,22 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
             }}
             type="button"
           >
-            <div className="avatar">{getInitials(user?.name || user?.email || "SC")}</div>
+            <div className="avatar">
+              {getInitials(user?.name || user?.email || "SC")}
+            </div>
             <div className="sidebar-profile-copy">
               <strong>{user?.email || "Smart Campus User"}</strong>
               <span>{user?.name || user?.roleName || "No name"}</span>
             </div>
           </button>
-          <div className={`sidebar-profile-menu ${isProfileMenuOpen ? "sidebar-profile-menu-open" : ""}`}>
-            <button className="sidebar-profile-logout" onClick={onLogout} type="button">
+          <div
+            className={`sidebar-profile-menu ${isProfileMenuOpen ? "sidebar-profile-menu-open" : ""}`}
+          >
+            <button
+              className="sidebar-profile-logout"
+              onClick={onLogout}
+              type="button"
+            >
               <LogoutIcon />
               <span>Logout</span>
             </button>
@@ -734,7 +1584,10 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
       <section className="content-area">
         <header className="dashboard-topbar">
           <div className="topbar-title">
-            <div className="topbar-title-animated" key={`${activeSection?.id || "dashboard"}-${topbarLabel}`}>
+            <div
+              className="topbar-title-animated"
+              key={`${activeSection?.id || "dashboard"}-${topbarLabel}`}
+            >
               <HomeIcon />
               <span>{topbarLabel}</span>
             </div>
@@ -746,24 +1599,91 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
                   aria-expanded={isNotificationsOpen}
                   aria-label="Notifications"
                   className={`topbar-icon-button ${isNotificationsOpen ? "topbar-icon-button-active" : ""}`}
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    setIsNotificationsOpen((value) => !value);
-                  }}
+                  onClick={openNotificationsPanel}
                   type="button"
                 >
-                  <img alt="" className="topbar-icon-image" src="/assets/icons/bell.png" />
+                  <img
+                    alt=""
+                    className="topbar-icon-image"
+                    src="/assets/icons/bell.png"
+                  />
+                  {unreadNotificationCount > 0 ? (
+                    <span
+                      className="topbar-notification-badge"
+                      aria-hidden="true"
+                    >
+                      {unreadNotificationCount > 9
+                        ? "9+"
+                        : unreadNotificationCount}
+                    </span>
+                  ) : null}
                 </button>
-                <div className={`topbar-notifications-menu ${isNotificationsOpen ? "topbar-notifications-menu-open" : ""}`}>
+                <div
+                  className={`topbar-notifications-menu ${isNotificationsOpen ? "topbar-notifications-menu-open" : ""}`}
+                >
                   <div className="topbar-notifications-header">
                     <strong>Notifications</strong>
-                    <span>Latest updates will appear here.</span>
+                    <span>Latest updates for your account.</span>
                   </div>
-                  <div className="topbar-notifications-empty">
-                    <img alt="" className="topbar-notifications-empty-icon" src="/assets/icons/bell.png" />
-                    <strong>No notifications yet</strong>
-                    <span>When your notification API is ready, items can appear here.</span>
-                  </div>
+                  {notificationsLoading ? (
+                    <div className="topbar-notifications-state">
+                      Loading notifications...
+                    </div>
+                  ) : notificationsError ? (
+                    <div className="topbar-notifications-state topbar-notifications-state-error">
+                      {notificationsError}
+                    </div>
+                  ) : visibleNotifications.length === 0 ? (
+                    <div className="topbar-notifications-empty">
+                      <img
+                        alt=""
+                        className="topbar-notifications-empty-icon"
+                        src="/assets/icons/bell.png"
+                      />
+                      <strong>No notifications yet</strong>
+                      <span>Ticket updates for your account will appear here.</span>
+                    </div>
+                  ) : (
+                    <div className="topbar-notifications-list">
+                      {visibleNotifications.map((notification) => (
+                        <article
+                          className="topbar-notification-item"
+                          key={notification.notificationId}
+                        >
+                          <div className="topbar-notification-copy">
+                            <strong>{notification.notificationType || "Notification"}</strong>
+                            <p>{notification.notification || ""}</p>
+                            <small>
+                              {formatNotificationTime(notification.createdAt)}
+                            </small>
+                          </div>
+                          <div className="topbar-notification-actions">
+                            {String(
+                              notification.notificationType || "",
+                            ).toLowerCase() === "ticket" ? (
+                              <button
+                                className="topbar-notification-link"
+                                onClick={openTicketFromNotification}
+                                type="button"
+                              >
+                                View ticket
+                              </button>
+                            ) : null}
+                            <button
+                              aria-label="Dismiss notification"
+                              className="topbar-notification-dismiss"
+                              onClick={() =>
+                                dismissNotification(notification.notificationId)
+                              }
+                              type="button"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             ) : null}
@@ -777,7 +1697,8 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
               <header className="hero-card">
                 <div className="hero-copy">
                   <h1>
-                    {greeting}, <span>{user?.name || user?.email || "User"}</span>
+                    {greeting},{" "}
+                    <span>{user?.name || user?.email || "User"}</span>
                   </h1>
                 </div>
 
@@ -798,29 +1719,52 @@ function DashboardPage({ activeSection, group, onLogout, onSectionChange, onThem
                   ? "dashboard-content-panel-resources"
                   : shouldShowAdminResourceManagement
                     ? "dashboard-content-panel-resources"
-                  : shouldShowAdminBookings
-                    ? "dashboard-content-panel-book-resource"
-                  : shouldShowAdminTimetable
-                    ? "dashboard-content-panel-resources"
-                  : shouldShowSettingsProfile
-                    ? "dashboard-content-panel-settings"
-                  : shouldShowMyBookings
-                    ? "dashboard-content-panel-book-resource"
-                  : shouldShowBookResource
-                    ? "dashboard-content-panel-book-resource"
-                    : shouldShowMyTickets
-                      ? "dashboard-content-panel-book-resource"
-                    : "dashboard-content-empty"
+                    : shouldShowAdminUsers
+                      ? "dashboard-content-panel-resources"
+                      : shouldShowAdminBookings
+                        ? "dashboard-content-panel-book-resource"
+                        : shouldShowAdminTimetable
+                          ? "dashboard-content-panel-resources"
+                          : shouldShowSettingsProfile
+                            ? "dashboard-content-panel-settings"
+                            : shouldShowMyBookings
+                              ? "dashboard-content-panel-book-resource"
+                              : shouldShowBookResource
+                                ? "dashboard-content-panel-book-resource"
+                                : shouldShowMyTickets
+                                  ? "dashboard-content-panel-book-resource"
+                                  : "dashboard-content-empty"
               }`}
             >
               {shouldShowResources ? <ResourcesSection token={token} /> : null}
-              {shouldShowAdminResourceManagement ? <AdminResourceManagementSection token={token} /> : null}
-              {shouldShowAdminBookings ? <AdminPendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
-              {shouldShowAdminTimetable ? <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
-              {shouldShowMyBookings ? <MyBookingsSection token={token} user={user} /> : null}
-              {shouldShowBookResource ? <BookResourceSection token={token} user={user} /> : null}
+              {shouldShowAdminResourceManagement ? (
+                <AdminResourceManagementSection token={token} />
+              ) : null}
+              {shouldShowAdminUsers ? (
+                <AdminUsersSection token={token} />
+              ) : null}
+              {shouldShowAdminBookings ? (
+                <AdminPendingBookingsPanel
+                  apiBaseUrl={API_BASE_URL}
+                  token={token}
+                />
+              ) : null}
+              {shouldShowAdminTimetable ? (
+                <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} />
+              ) : null}
+              {shouldShowMyBookings ? (
+                <MyBookingsSection
+                  token={token}
+                  user={user}
+                />
+              ) : null}
+              {shouldShowBookResource ? (
+                <BookResourceSection token={token} user={user} />
+              ) : null}
               {shouldShowMyTickets ? <MyTicketsSection /> : null}
-              {shouldShowSettingsProfile ? <SettingsProfileSection user={user} /> : null}
+              {shouldShowSettingsProfile ? (
+                <SettingsProfileSection user={user} />
+              ) : null}
             </section>
           </div>
         </div>
@@ -842,33 +1786,43 @@ function ResourcesSection({ token }) {
   const normalizedQuery = query.trim().toLowerCase();
   const resourceTypes = useMemo(
     () =>
-      [...new Set(allResources.map((resource) => resource.type).filter(Boolean))]
-        .sort((left, right) => left.localeCompare(right)),
-    [allResources]
+      [
+        ...new Set(
+          allResources.map((resource) => resource.type).filter(Boolean),
+        ),
+      ].sort((left, right) => left.localeCompare(right)),
+    [allResources],
   );
 
   const filteredResources = useMemo(
     () =>
       allResources.filter((resource) => {
         const matchesQuery =
-          !normalizedQuery || (resource.name || "").toLowerCase().includes(normalizedQuery);
+          !normalizedQuery ||
+          (resource.name || "").toLowerCase().includes(normalizedQuery);
         const matchesType =
           selectedTypes.length === 0 || selectedTypes.includes(resource.type);
         const rawAvailability = resource?.available ?? resource?.availability;
         const availabilityValue =
           rawAvailability === true || rawAvailability === false
             ? rawAvailability
-            : rawAvailability === 1 || rawAvailability === "1" || rawAvailability === "true";
-        const matchesAvailability = !availableOnly || availabilityValue === true;
+            : rawAvailability === 1 ||
+              rawAvailability === "1" ||
+              rawAvailability === "true";
+        const matchesAvailability =
+          !availableOnly || availabilityValue === true;
 
         return matchesQuery && matchesType && matchesAvailability;
       }),
-    [allResources, availableOnly, normalizedQuery, selectedTypes]
+    [allResources, availableOnly, normalizedQuery, selectedTypes],
   );
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(event.target)) {
+      if (
+        typeFilterRef.current &&
+        !typeFilterRef.current.contains(event.target)
+      ) {
         setIsTypeFilterOpen(false);
       }
     };
@@ -919,7 +1873,7 @@ function ResourcesSection({ token }) {
     setSelectedTypes((current) =>
       current.includes(type)
         ? current.filter((item) => item !== type)
-        : [...current, type]
+        : [...current, type],
     );
   };
 
@@ -931,7 +1885,10 @@ function ResourcesSection({ token }) {
         </div>
 
         <div className="workspace-toolbar">
-          <label className="workspace-search resources-search" htmlFor="resource-search">
+          <label
+            className="workspace-search resources-search"
+            htmlFor="resource-search"
+          >
             <SearchIcon />
             <input
               id="resource-search"
@@ -959,7 +1916,9 @@ function ResourcesSection({ token }) {
               </span>
             </button>
 
-            <div className={`resource-filter-menu ${isTypeFilterOpen ? "resource-filter-menu-open" : ""}`}>
+            <div
+              className={`resource-filter-menu ${isTypeFilterOpen ? "resource-filter-menu-open" : ""}`}
+            >
               <div className="resource-filter-menu-header">
                 <strong>Resource Types</strong>
                 {selectedTypes.length > 0 ? (
@@ -975,7 +1934,9 @@ function ResourcesSection({ token }) {
 
               <div className="resource-filter-options">
                 {resourceTypes.length === 0 ? (
-                  <div className="resource-filter-empty">No resource types found.</div>
+                  <div className="resource-filter-empty">
+                    No resource types found.
+                  </div>
                 ) : (
                   resourceTypes.map((type) => (
                     <label className="resource-filter-option" key={type}>
@@ -1032,14 +1993,23 @@ function ResourcesSection({ token }) {
       ) : (
         <div className="resource-grid">
           {filteredResources.map((resource) => (
-            <article className="resource-card" key={resource.id ?? `${resource.name}-${resource.location}`}>
+            <article
+              className="resource-card"
+              key={resource.id ?? `${resource.name}-${resource.location}`}
+            >
               <div className="resource-card-top">
-                <div className="resource-card-mark">{getResourceMark(resource.type)}</div>
+                <div className="resource-card-mark">
+                  {getResourceMark(resource.type)}
+                </div>
                 <div className="resource-card-copy">
                   <h3>{resource.name || "Unnamed Resource"}</h3>
-                  <span>{resource.location || "Campus location not available"}</span>
+                  <span>
+                    {resource.location || "Campus location not available"}
+                  </span>
                 </div>
-                <span className="resource-type-badge">{resource.type || "Resource"}</span>
+                <span className="resource-type-badge">
+                  {resource.type || "Resource"}
+                </span>
               </div>
 
               <div className="resource-card-meta">
@@ -1065,7 +2035,8 @@ function AdminResourceManagementSection({ token }) {
   const [minCapacity, setMinCapacity] = useState("");
   const [maxCapacity, setMaxCapacity] = useState("");
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [pendingAvailabilityChange, setPendingAvailabilityChange] = useState(null);
+  const [pendingAvailabilityChange, setPendingAvailabilityChange] =
+    useState(null);
   const [availabilityError, setAvailabilityError] = useState("");
   const [isChangingAvailability, setIsChangingAvailability] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -1088,9 +2059,10 @@ function AdminResourceManagementSection({ token }) {
   const queryValue = query.trim().toLowerCase();
   const typeOptions = useMemo(
     () =>
-      [...new Set(resources.map((resource) => resource.type).filter(Boolean))]
-        .sort((left, right) => left.localeCompare(right)),
-    [resources]
+      [
+        ...new Set(resources.map((resource) => resource.type).filter(Boolean)),
+      ].sort((left, right) => left.localeCompare(right)),
+    [resources],
   );
 
   function getCapacityNumber(value) {
@@ -1128,18 +2100,35 @@ function AdminResourceManagementSection({ token }) {
       const resourceName = (resource.name || "").toLowerCase();
       const resourceId = resource.id == null ? "" : String(resource.id);
       const matchesQuery =
-        !queryValue || resourceName.includes(queryValue) || resourceId.includes(queryValue);
+        !queryValue ||
+        resourceName.includes(queryValue) ||
+        resourceId.includes(queryValue);
       const matchesType = !selectedType || resource.type === selectedType;
 
       const capacityValue = getCapacityNumber(resource.capacity);
-      const matchesMin = min == null || (capacityValue != null && capacityValue >= min);
-      const matchesMax = max == null || (capacityValue != null && capacityValue <= max);
+      const matchesMin =
+        min == null || (capacityValue != null && capacityValue >= min);
+      const matchesMax =
+        max == null || (capacityValue != null && capacityValue <= max);
       const availabilityValue = getAvailabilityBoolean(resource);
       const matchesAvailability = !availableOnly || availabilityValue === true;
 
-      return matchesQuery && matchesType && matchesMin && matchesMax && matchesAvailability;
+      return (
+        matchesQuery &&
+        matchesType &&
+        matchesMin &&
+        matchesMax &&
+        matchesAvailability
+      );
     });
-  }, [availableOnly, maxCapacity, minCapacity, queryValue, resources, selectedType]);
+  }, [
+    availableOnly,
+    maxCapacity,
+    minCapacity,
+    queryValue,
+    resources,
+    selectedType,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1179,11 +2168,13 @@ function AdminResourceManagementSection({ token }) {
     return () => controller.abort();
   }, [token]);
 
-  const currentCapacityValue = editingResource?.capacity == null ? "" : String(editingResource.capacity);
+  const currentCapacityValue =
+    editingResource?.capacity == null ? "" : String(editingResource.capacity);
   const currentLocationValue = editingResource?.location || "";
   const isEditDirty =
     editingResource != null &&
-    (editCapacity !== currentCapacityValue || editLocation !== currentLocationValue);
+    (editCapacity !== currentCapacityValue ||
+      editLocation !== currentLocationValue);
 
   function getAvailabilityBoolean(resource) {
     const rawValue = resource?.available ?? resource?.availability;
@@ -1249,11 +2240,14 @@ function AdminResourceManagementSection({ token }) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/facilities/createResource`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/facilities/createResource`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        },
+      );
 
       const responsePayload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1265,11 +2259,13 @@ function AdminResourceManagementSection({ token }) {
           const leftId = left?.id ?? Number.MAX_SAFE_INTEGER;
           const rightId = right?.id ?? Number.MAX_SAFE_INTEGER;
           return leftId - rightId;
-        })
+        }),
       );
       closeCreateModal();
     } catch (requestError) {
-      setCreateError(requestError.message || "Unable to create the resource right now.");
+      setCreateError(
+        requestError.message || "Unable to create the resource right now.",
+      );
     } finally {
       setIsCreating(false);
     }
@@ -1321,14 +2317,17 @@ function AdminResourceManagementSection({ token }) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/facilities/changeResourceAvailability`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          resource_id: pendingAvailabilityChange.resource.id,
-          available: pendingAvailabilityChange.nextValue === "available",
-        }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/facilities/changeResourceAvailability`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            resource_id: pendingAvailabilityChange.resource.id,
+            available: pendingAvailabilityChange.nextValue === "available",
+          }),
+        },
+      );
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1345,12 +2344,14 @@ function AdminResourceManagementSection({ token }) {
         current.map((resource) =>
           resource.id === pendingAvailabilityChange.resource.id
             ? { ...resource, available: normalizedAvailability }
-            : resource
-        )
+            : resource,
+        ),
       );
       setPendingAvailabilityChange(null);
     } catch (requestError) {
-      setAvailabilityError(requestError.message || "Unable to update availability right now.");
+      setAvailabilityError(
+        requestError.message || "Unable to update availability right now.",
+      );
     } finally {
       setIsChangingAvailability(false);
     }
@@ -1399,11 +2400,14 @@ function AdminResourceManagementSection({ token }) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/facilities/updateResource/${editingResource.id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/facilities/updateResource/${editingResource.id}`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload),
+        },
+      );
 
       const payloadResponse = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1411,11 +2415,15 @@ function AdminResourceManagementSection({ token }) {
       }
 
       setResources((current) =>
-        current.map((resource) => (resource.id === editingResource.id ? payloadResponse : resource))
+        current.map((resource) =>
+          resource.id === editingResource.id ? payloadResponse : resource,
+        ),
       );
       closeEditModal(true);
     } catch (requestError) {
-      setEditError(requestError.message || "Unable to update the resource right now.");
+      setEditError(
+        requestError.message || "Unable to update the resource right now.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -1428,21 +2436,26 @@ function AdminResourceManagementSection({ token }) {
     setDeleteError("");
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await fetch(`${API_BASE_URL}/api/facilities/deleteResource/${deletingResource.id}`, {
-        method: "DELETE",
-        headers,
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/facilities/deleteResource/${deletingResource.id}`,
+        {
+          method: "DELETE",
+          headers,
+        },
+      );
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(getMessage(payload));
       }
 
-      setResources((current) => current.filter((resource) => resource.id !== deletingResource.id));
+      setResources((current) =>
+        current.filter((resource) => resource.id !== deletingResource.id),
+      );
       setDeletingResource(null);
     } catch (requestError) {
       setDeleteError(
-        requestError.message || "Unable to delete the resource right now."
+        requestError.message || "Unable to delete the resource right now.",
       );
     } finally {
       setIsDeleting(false);
@@ -1455,7 +2468,11 @@ function AdminResourceManagementSection({ token }) {
         <div className="workspace-title-block">
           <h2>Resource Management</h2>
         </div>
-        <button className="workspace-add-button resource-management-add-button" onClick={() => setIsCreateModalOpen(true)} type="button">
+        <button
+          className="workspace-add-button resource-management-add-button"
+          onClick={() => setIsCreateModalOpen(true)}
+          type="button"
+        >
           <span className="resource-management-add-icon">
             <PlusSquareIcon />
           </span>
@@ -1464,7 +2481,10 @@ function AdminResourceManagementSection({ token }) {
       </div>
 
       <div className="resource-management-toolbar">
-        <label className="workspace-search resource-management-search" htmlFor="resource-management-search">
+        <label
+          className="workspace-search resource-management-search"
+          htmlFor="resource-management-search"
+        >
           <SearchIcon />
           <input
             id="resource-management-search"
@@ -1477,7 +2497,10 @@ function AdminResourceManagementSection({ token }) {
 
         <label className="resource-management-filter">
           <span>Type</span>
-          <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
+          <select
+            value={selectedType}
+            onChange={(event) => setSelectedType(event.target.value)}
+          >
             <option value="">All Types</option>
             {typeOptions.map((type) => (
               <option key={type} value={type}>
@@ -1558,7 +2581,9 @@ function AdminResourceManagementSection({ token }) {
                 </tr>
               ) : (
                 filteredResources.map((resource) => (
-                  <tr key={resource.id ?? `${resource.name}-${resource.location}`}>
+                  <tr
+                    key={resource.id ?? `${resource.name}-${resource.location}`}
+                  >
                     <td>{resource.id ?? "N/A"}</td>
                     <td>{resource.type || "N/A"}</td>
                     <td>{resource.name || "N/A"}</td>
@@ -1568,7 +2593,12 @@ function AdminResourceManagementSection({ token }) {
                       <div className="resource-management-availability-cell">
                         <select
                           className="resource-management-select"
-                          onChange={(event) => requestAvailabilityChange(resource, event.target.value)}
+                          onChange={(event) =>
+                            requestAvailabilityChange(
+                              resource,
+                              event.target.value,
+                            )
+                          }
                           value={getAvailabilitySelectValue(resource)}
                         >
                           <option value="unknown" disabled>
@@ -1580,12 +2610,20 @@ function AdminResourceManagementSection({ token }) {
                       </div>
                     </td>
                     <td>
-                      <button className="resource-management-action resource-management-action-update" onClick={() => openEditModal(resource)} type="button">
+                      <button
+                        className="resource-management-action resource-management-action-update"
+                        onClick={() => openEditModal(resource)}
+                        type="button"
+                      >
                         Update
                       </button>
                     </td>
                     <td>
-                      <button className="resource-management-action resource-management-action-delete" onClick={() => setDeletingResource(resource)} type="button">
+                      <button
+                        className="resource-management-action resource-management-action-delete"
+                        onClick={() => setDeletingResource(resource)}
+                        type="button"
+                      >
                         Delete
                       </button>
                     </td>
@@ -1599,8 +2637,17 @@ function AdminResourceManagementSection({ token }) {
 
       {editingResource ? (
         <div className="modal-backdrop">
-          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="resource-update-title">
-            <button className="modal-close" onClick={() => closeEditModal()} type="button">
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resource-update-title"
+          >
+            <button
+              className="modal-close"
+              onClick={() => closeEditModal()}
+              type="button"
+            >
               <span aria-hidden="true">x</span>
             </button>
 
@@ -1616,11 +2663,19 @@ function AdminResourceManagementSection({ token }) {
               </label>
               <label className="modal-field">
                 <span>Type</span>
-                <input readOnly type="text" value={editingResource.type || "N/A"} />
+                <input
+                  readOnly
+                  type="text"
+                  value={editingResource.type || "N/A"}
+                />
               </label>
               <label className="modal-field">
                 <span>Name</span>
-                <input readOnly type="text" value={editingResource.name || "N/A"} />
+                <input
+                  readOnly
+                  type="text"
+                  value={editingResource.name || "N/A"}
+                />
               </label>
               <label className="modal-field">
                 <span>Capacity</span>
@@ -1643,13 +2698,24 @@ function AdminResourceManagementSection({ token }) {
               </label>
             </div>
 
-            {editError ? <div className="modal-inline-error">{editError}</div> : null}
+            {editError ? (
+              <div className="modal-inline-error">{editError}</div>
+            ) : null}
 
             <div className="modal-actions">
-              <button className="modal-secondary-button" onClick={() => closeEditModal(true)} type="button">
+              <button
+                className="modal-secondary-button"
+                onClick={() => closeEditModal(true)}
+                type="button"
+              >
                 Discard
               </button>
-              <button className="modal-primary-button" disabled={isSaving} onClick={saveResourceUpdate} type="button">
+              <button
+                className="modal-primary-button"
+                disabled={isSaving}
+                onClick={saveResourceUpdate}
+                type="button"
+              >
                 {isSaving ? "Saving..." : "Save"}
               </button>
             </div>
@@ -1659,13 +2725,26 @@ function AdminResourceManagementSection({ token }) {
                 <strong>Unsaved changes</strong>
                 <span>Do you want to save before closing this window?</span>
                 <div className="modal-confirm-actions">
-                  <button className="modal-secondary-button" onClick={() => setIsCloseConfirmOpen(false)} type="button">
+                  <button
+                    className="modal-secondary-button"
+                    onClick={() => setIsCloseConfirmOpen(false)}
+                    type="button"
+                  >
                     Continue Editing
                   </button>
-                  <button className="modal-secondary-button" onClick={() => closeEditModal(true)} type="button">
+                  <button
+                    className="modal-secondary-button"
+                    onClick={() => closeEditModal(true)}
+                    type="button"
+                  >
                     Discard
                   </button>
-                  <button className="modal-primary-button" disabled={isSaving} onClick={saveResourceUpdate} type="button">
+                  <button
+                    className="modal-primary-button"
+                    disabled={isSaving}
+                    onClick={saveResourceUpdate}
+                    type="button"
+                  >
                     Save
                   </button>
                 </div>
@@ -1677,7 +2756,12 @@ function AdminResourceManagementSection({ token }) {
 
       {deletingResource ? (
         <div className="modal-backdrop">
-          <div className="modal-card modal-card-confirm" role="dialog" aria-modal="true" aria-labelledby="resource-delete-title">
+          <div
+            className="modal-card modal-card-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resource-delete-title"
+          >
             <div className="modal-header">
               <h3 id="resource-delete-title">Delete Resource</h3>
               <p>
@@ -1711,7 +2795,12 @@ function AdminResourceManagementSection({ token }) {
                 >
                   No
                 </button>
-                <button className="resource-management-action resource-management-action-delete" disabled={isDeleting} onClick={confirmDelete} type="button">
+                <button
+                  className="resource-management-action resource-management-action-delete"
+                  disabled={isDeleting}
+                  onClick={confirmDelete}
+                  type="button"
+                >
                   {isDeleting ? "Deleting..." : "Yes, Delete"}
                 </button>
               </div>
@@ -1731,12 +2820,18 @@ function AdminResourceManagementSection({ token }) {
             <div className="modal-header">
               <h3 id="resource-availability-title">Change Availability</h3>
               <p>
-                Are you sure you want to mark {pendingAvailabilityChange.resource.name || "this resource"} as{" "}
-                {pendingAvailabilityChange.nextValue === "available" ? "Available" : "Not Available"}?
+                Are you sure you want to mark{" "}
+                {pendingAvailabilityChange.resource.name || "this resource"} as{" "}
+                {pendingAvailabilityChange.nextValue === "available"
+                  ? "Available"
+                  : "Not Available"}
+                ?
               </p>
             </div>
 
-            {availabilityError ? <div className="modal-inline-error">{availabilityError}</div> : null}
+            {availabilityError ? (
+              <div className="modal-inline-error">{availabilityError}</div>
+            ) : null}
 
             <div className="modal-actions">
               <button
@@ -1764,8 +2859,17 @@ function AdminResourceManagementSection({ token }) {
 
       {isCreateModalOpen ? (
         <div className="modal-backdrop">
-          <div aria-labelledby="resource-create-title" aria-modal="true" className="modal-card" role="dialog">
-            <button className="modal-close" onClick={closeCreateModal} type="button">
+          <div
+            aria-labelledby="resource-create-title"
+            aria-modal="true"
+            className="modal-card"
+            role="dialog"
+          >
+            <button
+              className="modal-close"
+              onClick={closeCreateModal}
+              type="button"
+            >
               <span aria-hidden="true">x</span>
             </button>
 
@@ -1777,7 +2881,10 @@ function AdminResourceManagementSection({ token }) {
             <div className="modal-form-grid">
               <label className="modal-field">
                 <span>Type</span>
-                <select onChange={(event) => setCreateType(event.target.value)} value={createType}>
+                <select
+                  onChange={(event) => setCreateType(event.target.value)}
+                  value={createType}
+                >
                   <option value="">Select type</option>
                   <option value="LecHall">Lecture Hall</option>
                   <option value="Lab">Lab</option>
@@ -1814,13 +2921,24 @@ function AdminResourceManagementSection({ token }) {
               </label>
             </div>
 
-            {createError ? <div className="modal-inline-error">{createError}</div> : null}
+            {createError ? (
+              <div className="modal-inline-error">{createError}</div>
+            ) : null}
 
             <div className="modal-actions">
-              <button className="modal-secondary-button" onClick={closeCreateModal} type="button">
+              <button
+                className="modal-secondary-button"
+                onClick={closeCreateModal}
+                type="button"
+              >
                 Discard
               </button>
-              <button className="modal-primary-button" disabled={isCreating} onClick={saveCreatedResource} type="button">
+              <button
+                className="modal-primary-button"
+                disabled={isCreating}
+                onClick={saveCreatedResource}
+                type="button"
+              >
                 {isCreating ? "Saving..." : "Save"}
               </button>
             </div>
@@ -1831,18 +2949,497 @@ function AdminResourceManagementSection({ token }) {
   );
 }
 
+function AdminUsersSection({ token }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [editingUser, setEditingUser] = useState(null);
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editError, setEditError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const queryValue = query.trim().toLowerCase();
+  const roleOptions = useMemo(
+    () =>
+      [...new Set(users.map((user) => user.roleName).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [users],
+  );
+
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        const searchBlob = [
+          user.userId,
+          user.name,
+          user.username,
+          user.email,
+          user.phone,
+          user.address,
+          user.roleName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const matchesQuery = !queryValue || searchBlob.includes(queryValue);
+        const matchesRole = !selectedRole || user.roleName === selectedRole;
+        const statusValue = user.active ? "active" : "inactive";
+        const matchesStatus = !selectedStatus || statusValue === selectedStatus;
+
+        return matchesQuery && matchesRole && matchesStatus;
+      }),
+    [queryValue, selectedRole, selectedStatus, users],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadUsers() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => []);
+        if (!response.ok) {
+          throw new Error(getMessage(payload));
+        }
+
+        setUsers(Array.isArray(payload) ? payload : []);
+      } catch (requestError) {
+        if (requestError.name === "AbortError") {
+          return;
+        }
+
+        setUsers([]);
+        setError(requestError.message || "Unable to load users right now.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadUsers();
+    return () => controller.abort();
+  }, [token]);
+
+  const openEditModal = (user) => {
+    setEditingUser(user);
+    setEditPhone(user.phone || "");
+    setEditAddress(user.address || "");
+    setEditError("");
+  };
+
+  const closeEditModal = () => {
+    setEditingUser(null);
+    setEditPhone("");
+    setEditAddress("");
+    setEditError("");
+  };
+
+  const saveUserUpdate = async () => {
+    if (!editingUser?.userId) return;
+
+    const payload = {};
+    const trimmedPhone = editPhone.trim();
+    const trimmedAddress = editAddress.trim();
+
+    if (trimmedPhone !== (editingUser.phone || ""))
+      payload.phone = trimmedPhone;
+    if (trimmedAddress !== (editingUser.address || ""))
+      payload.address = trimmedAddress;
+
+    if (Object.keys(payload).length === 0) {
+      closeEditModal();
+      return;
+    }
+
+    setIsSaving(true);
+    setEditError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/users/${editingUser.userId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const responsePayload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(getMessage(responsePayload));
+      }
+
+      setUsers((current) =>
+        current.map((user) =>
+          user.userId === editingUser.userId ? responsePayload : user,
+        ),
+      );
+      closeEditModal();
+    } catch (requestError) {
+      setEditError(
+        requestError.message || "Unable to update the user right now.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingUser?.userId) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/users/${deletingUser.userId}`,
+        {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(getMessage(payload));
+      }
+
+      setDeletingUser(null);
+      window.location.reload();
+    } catch (requestError) {
+      setDeleteError(
+        requestError.message || "Unable to delete the user right now.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="resource-management-shell">
+      <div className="workspace-header">
+        <div className="workspace-title-block">
+          <h2>User Management</h2>
+        </div>
+      </div>
+
+      <div className="resource-management-toolbar">
+        <label
+          className="workspace-search resource-management-search"
+          htmlFor="user-management-search"
+        >
+          <SearchIcon />
+          <input
+            id="user-management-search"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by user name, username, email, or ID..."
+            type="search"
+            value={query}
+          />
+        </label>
+
+        <label className="resource-management-filter">
+          <span>Role</span>
+          <select
+            onChange={(event) => setSelectedRole(event.target.value)}
+            value={selectedRole}
+          >
+            <option value="">All Roles</option>
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="resource-management-filter">
+          <span>Status</span>
+          <select
+            onChange={(event) => setSelectedStatus(event.target.value)}
+            value={selectedStatus}
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+      </div>
+
+      {loading ? (
+        <div className="resources-state-card">
+          <div className="resources-loading-dots">
+            <span />
+            <span />
+            <span />
+          </div>
+          <strong>Loading user table...</strong>
+          <span>Fetching the latest user records.</span>
+        </div>
+      ) : error ? (
+        <div className="resources-state-card resources-state-error">
+          <strong>Could not load users</strong>
+          <span>{error}</span>
+        </div>
+      ) : (
+        <div className="resource-management-table-wrap">
+          <table className="resource-management-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Edit</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td className="resource-management-empty-row" colSpan={10}>
+                    No users matched the current search.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.userId}>
+                    <td>{user.userId ?? "N/A"}</td>
+                    <td>{user.name || "N/A"}</td>
+                    <td>{user.username || "N/A"}</td>
+                    <td>{user.email || "N/A"}</td>
+                    <td>{user.phone || "N/A"}</td>
+                    <td>{user.address || "N/A"}</td>
+                    <td>{user.roleName || "N/A"}</td>
+                    <td>{user.active ? "Active" : "Inactive"}</td>
+                    <td>
+                      <button
+                        className="resource-management-action resource-management-action-update"
+                        onClick={() => openEditModal(user)}
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        className="resource-management-action resource-management-action-delete"
+                        onClick={() => setDeletingUser(user)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editingUser ? (
+        <div className="modal-backdrop">
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-update-title"
+          >
+            <button
+              className="modal-close"
+              onClick={closeEditModal}
+              type="button"
+            >
+              <span aria-hidden="true">x</span>
+            </button>
+
+            <div className="modal-header">
+              <h3 id="user-update-title">Edit User</h3>
+              <p>Update the user details below.</p>
+            </div>
+
+            <div className="modal-form-grid">
+              <label className="modal-field">
+                <span>ID</span>
+                <input readOnly type="text" value={editingUser.userId ?? ""} />
+              </label>
+              <label className="modal-field">
+                <span>Role</span>
+                <input
+                  readOnly
+                  type="text"
+                  value={editingUser.roleName || "N/A"}
+                />
+              </label>
+              <label className="modal-field">
+                <span>Name</span>
+                <input readOnly type="text" value={editingUser.name || "N/A"} />
+              </label>
+              <label className="modal-field">
+                <span>Username</span>
+                <input
+                  readOnly
+                  type="text"
+                  value={editingUser.username || "N/A"}
+                />
+              </label>
+              <label className="modal-field">
+                <span>Phone</span>
+                <input
+                  onChange={(event) => setEditPhone(event.target.value)}
+                  placeholder="10-digit phone"
+                  type="text"
+                  value={editPhone}
+                />
+              </label>
+              <label className="modal-field modal-field-full">
+                <span>Address</span>
+                <input
+                  onChange={(event) => setEditAddress(event.target.value)}
+                  placeholder="Home address"
+                  type="text"
+                  value={editAddress}
+                />
+              </label>
+            </div>
+
+            {editError ? (
+              <div className="modal-inline-error">{editError}</div>
+            ) : null}
+
+            <div className="modal-actions">
+              <button
+                className="modal-secondary-button"
+                onClick={closeEditModal}
+                type="button"
+              >
+                Discard
+              </button>
+              <button
+                className="modal-primary-button"
+                disabled={isSaving}
+                onClick={saveUserUpdate}
+                type="button"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deletingUser ? (
+        <div className="modal-backdrop">
+          <div
+            className="modal-card modal-card-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-delete-title"
+          >
+            <div className="modal-header">
+              <h3 id="user-delete-title">Delete User</h3>
+              <p>
+                {deleteError
+                  ? "The user could not be deleted. Please try again."
+                  : `Are you sure you want to delete ${deletingUser.name || deletingUser.username || `user #${deletingUser.userId}`}?`}
+              </p>
+            </div>
+
+            {deleteError ? (
+              <div className="modal-actions">
+                <button
+                  className="modal-primary-button"
+                  onClick={() => {
+                    setDeletingUser(null);
+                    setDeleteError("");
+                  }}
+                  type="button"
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+              <div className="modal-actions">
+                <button
+                  className="modal-secondary-button"
+                  onClick={() => {
+                    setDeletingUser(null);
+                    setDeleteError("");
+                  }}
+                  type="button"
+                >
+                  No
+                </button>
+                <button
+                  className="resource-management-action resource-management-action-delete"
+                  disabled={isDeleting}
+                  onClick={confirmDelete}
+                  type="button"
+                >
+                  {isDeleting ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MyBookingsSection({ token, user }) {
   const [activeTab, setActiveTab] = useState("approved");
+
   const activePanel = {
-    approved: <ApprovedBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-    pending: <PendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    approved: (
+      <ApprovedBookingsPanel
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+        userId={user?.userId}
+      />
+    ),
+    pending: (
+      <PendingBookingsPanel
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+        userId={user?.userId}
+      />
+    ),
     rejected: <RejectedBookingsPanel />,
     cancelled: <CancelledBookingsPanel />,
   }[activeTab];
 
   return (
     <div className="book-resource-shell">
-      <div className="book-resource-tabs bookings-tabs" role="tablist" aria-label="My bookings status tabs">
+      <div
+        className="book-resource-tabs bookings-tabs"
+        role="tablist"
+        aria-label="My bookings status tabs"
+      >
         <button
           aria-selected={activeTab === "approved"}
           className={`book-resource-tab ${activeTab === "approved" ? "book-resource-tab-active" : ""}`}
@@ -1881,7 +3478,11 @@ function MyBookingsSection({ token, user }) {
         </button>
       </div>
 
-      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+      <div
+        className="book-resource-tab-panel"
+        role="tabpanel"
+        aria-live="polite"
+      >
         {activePanel}
       </div>
     </div>
@@ -1896,10 +3497,12 @@ function SettingsProfileSection({ user }) {
           <h2>Profile</h2>
         </div>
       </div>
-      
+
       <div className="settings-profile-card">
         <div className="settings-profile-hero">
-          <div className="settings-profile-avatar">{getInitials(user?.name || user?.email || "SC")}</div>
+          <div className="settings-profile-avatar">
+            {getInitials(user?.name || user?.email || "SC")}
+          </div>
           <div className="settings-profile-copy">
             <h3>{user?.name || "Smart Campus User"}</h3>
             <span>{user?.roleName || "User"}</span>
@@ -1933,14 +3536,27 @@ function BookResourceSection({ token, user }) {
   const [activeTab, setActiveTab] = useState("type");
   const activePanel =
     activeTab === "type" ? (
-      <BookByTypePanel apiBaseUrl={API_BASE_URL} roleName={user?.roleName} token={token} userId={user?.userId} />
+      <BookByTypePanel
+        apiBaseUrl={API_BASE_URL}
+        roleName={user?.roleName}
+        token={token}
+        userId={user?.userId}
+      />
     ) : (
-      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />
+      <BookByNamePanel
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+        userId={user?.userId}
+      />
     );
 
   return (
     <div className="book-resource-shell">
-      <div className="book-resource-tabs" role="tablist" aria-label="Book resource options">
+      <div
+        className="book-resource-tabs"
+        role="tablist"
+        aria-label="Book resource options"
+      >
         <button
           aria-selected={activeTab === "type"}
           className={`book-resource-tab ${activeTab === "type" ? "book-resource-tab-active" : ""}`}
@@ -1961,7 +3577,11 @@ function BookResourceSection({ token, user }) {
         </button>
       </div>
 
-      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+      <div
+        className="book-resource-tab-panel"
+        role="tabpanel"
+        aria-live="polite"
+      >
         {activePanel}
       </div>
     </div>
@@ -1972,15 +3592,24 @@ function MyTicketsSection() {
   const [activeTab, setActiveTab] = useState("open");
   const tabs = [
     { key: "open", label: "Open", panel: <OpenTicketsPanel /> },
-    { key: "in-progress", label: "In Progress", panel: <InProgressTicketsPanel /> },
+    {
+      key: "in-progress",
+      label: "In Progress",
+      panel: <InProgressTicketsPanel />,
+    },
     { key: "resolved", label: "Resolved", panel: <ResolvedTicketsPanel /> },
     { key: "rejected", label: "Rejected", panel: <RejectedTicketsPanel /> },
   ];
-  const activePanel = tabs.find((tab) => tab.key === activeTab)?.panel || tabs[0].panel;
+  const activePanel =
+    tabs.find((tab) => tab.key === activeTab)?.panel || tabs[0].panel;
 
   return (
     <div className="book-resource-shell">
-      <div className="book-resource-tabs tickets-tabs" role="tablist" aria-label="My tickets status tabs">
+      <div
+        className="book-resource-tabs tickets-tabs"
+        role="tablist"
+        aria-label="My tickets status tabs"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -1995,7 +3624,11 @@ function MyTicketsSection() {
         ))}
       </div>
 
-      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+      <div
+        className="book-resource-tab-panel"
+        role="tabpanel"
+        aria-live="polite"
+      >
         {activePanel}
       </div>
     </div>
@@ -2006,7 +3639,10 @@ function RejectedBookingsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>Rejected Bookings</h3>
-      <p>Rejected bookings display here. We can add the real rejected booking content next.</p>
+      <p>
+        Rejected bookings display here. We can add the real rejected booking
+        content next.
+      </p>
     </div>
   );
 }
@@ -2015,7 +3651,10 @@ function CancelledBookingsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>Cancelled Bookings</h3>
-      <p>Cancelled bookings display here. We can add the real cancelled booking content next.</p>
+      <p>
+        Cancelled bookings display here. We can add the real cancelled booking
+        content next.
+      </p>
     </div>
   );
 }
@@ -2024,7 +3663,9 @@ function OpenTicketsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>Open Tickets</h3>
-      <p>Open tickets display here. We can add the real open ticket content next.</p>
+      <p>
+        Open tickets display here. We can add the real open ticket content next.
+      </p>
     </div>
   );
 }
@@ -2033,7 +3674,10 @@ function InProgressTicketsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>In Progress Tickets</h3>
-      <p>In progress tickets display here. We can add the real in progress ticket content next.</p>
+      <p>
+        In progress tickets display here. We can add the real in progress ticket
+        content next.
+      </p>
     </div>
   );
 }
@@ -2042,7 +3686,10 @@ function ResolvedTicketsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>Resolved Tickets</h3>
-      <p>Resolved tickets display here. We can add the real resolved ticket content next.</p>
+      <p>
+        Resolved tickets display here. We can add the real resolved ticket
+        content next.
+      </p>
     </div>
   );
 }
@@ -2051,7 +3698,10 @@ function RejectedTicketsPanel() {
   return (
     <div className="book-resource-panel-card">
       <h3>Rejected Tickets</h3>
-      <p>Rejected tickets display here. We can add the real rejected ticket content next.</p>
+      <p>
+        Rejected tickets display here. We can add the real rejected ticket
+        content next.
+      </p>
     </div>
   );
 }
@@ -2069,7 +3719,9 @@ function getResourceMark(type) {
 function ThemeToggle({ onClick, theme }) {
   return (
     <button
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={
+        theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+      }
       className="theme-toggle"
       onClick={onClick}
       type="button"
@@ -2077,7 +3729,11 @@ function ThemeToggle({ onClick, theme }) {
       <img
         alt=""
         className="theme-toggle-icon"
-        src={theme === "dark" ? "/assets/icons/lightMode.png" : "/assets/icons/darkMode.png"}
+        src={
+          theme === "dark"
+            ? "/assets/icons/lightMode.png"
+            : "/assets/icons/darkMode.png"
+        }
       />
     </button>
   );
@@ -2116,7 +3772,12 @@ function HomeIcon() {
         strokeLinejoin="round"
         strokeWidth="1.8"
       />
-      <path d="M10 20v-5h4v5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M10 20v-5h4v5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2124,10 +3785,46 @@ function HomeIcon() {
 function GridIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <rect x="4" y="4" width="6" height="6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="14" y="4" width="6" height="6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="4" y="14" width="6" height="6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="14" y="14" width="6" height="6" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect
+        x="4"
+        y="4"
+        width="6"
+        height="6"
+        rx="1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="14"
+        y="4"
+        width="6"
+        height="6"
+        rx="1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="4"
+        y="14"
+        width="6"
+        height="6"
+        rx="1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <rect
+        x="14"
+        y="14"
+        width="6"
+        height="6"
+        rx="1.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2148,8 +3845,23 @@ function SettingsIcon() {
 function PlusSquareIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 8v8M8 12h8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M12 8v8M8 12h8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2157,8 +3869,21 @@ function PlusSquareIcon() {
 function ClockIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 8v4.5l3 1.8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <circle
+        cx="12"
+        cy="12"
+        r="8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M12 8v4.5l3 1.8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2166,8 +3891,21 @@ function ClockIcon() {
 function SearchIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m20 20-4.2-4.2" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <circle
+        cx="11"
+        cy="11"
+        r="6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="m20 20-4.2-4.2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2175,7 +3913,13 @@ function SearchIcon() {
 function ChevronRightIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <path d="m10 7 5 5-5 5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path
+        d="m10 7 5 5-5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2183,7 +3927,13 @@ function ChevronRightIcon() {
 function ChevronDownIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path
+        d="m7 10 5 5 5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
     </svg>
   );
 }
@@ -2191,7 +3941,16 @@ function ChevronDownIcon() {
 function PanelIcon() {
   return (
     <svg aria-hidden="true" height="16" viewBox="0 0 24 24" width="16">
-      <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <rect
+        x="4"
+        y="5"
+        width="16"
+        height="14"
+        rx="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <path d="M10 5v14" fill="none" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   );
@@ -2218,10 +3977,7 @@ function LogoutIcon() {
 }
 
 function getInitials(value) {
-  const parts = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const parts = String(value).trim().split(/\s+/).filter(Boolean);
 
   if (!parts.length) return "SC";
   return parts
