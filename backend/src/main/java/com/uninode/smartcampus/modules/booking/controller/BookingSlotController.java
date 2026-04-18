@@ -20,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingRequest;
 import com.uninode.smartcampus.modules.booking.dto.ApproveBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.AvailableSlotResponse;
+import com.uninode.smartcampus.modules.booking.dto.CancelBookingRequest;
+import com.uninode.smartcampus.modules.booking.dto.CancelBookingResponse;
 import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupRequest;
 import com.uninode.smartcampus.modules.booking.dto.CreateBookingGroupResponse;
 import com.uninode.smartcampus.modules.booking.dto.PendingBookingResponse;
@@ -95,6 +97,24 @@ public class BookingSlotController {
     @GetMapping("/ViewApprovedBookings")
     public ResponseEntity<List<PendingBookingResponse>> viewApprovedBookings() {
         List<PendingBookingResponse> response = bookingSlotService.viewApprovedBookings();
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @GetMapping("/ViewRejectedBookings")
+    public ResponseEntity<List<PendingBookingResponse>> viewRejectedBookings() {
+        List<PendingBookingResponse> response = bookingSlotService.viewRejectedBookings();
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @GetMapping("/ViewCancelledBookings")
+    public ResponseEntity<List<PendingBookingResponse>> viewCancelledBookings() {
+        List<PendingBookingResponse> response = bookingSlotService.viewCancelledBookings();
         return ResponseEntity
                 .ok()
                 .cacheControl(CacheControl.noStore())
@@ -228,11 +248,16 @@ public class BookingSlotController {
     @GetMapping("/checkAvailabilityByResourceName")
     public ResponseEntity<Object> checkAvailabilityByResourceName(
             @RequestParam("name") String name,
+            @RequestParam("roleName") String roleName,
             @RequestParam(value = "date", required = false) String dateString,
             @RequestParam(value = "slots", required = false) List<Long> slots) {
         String normalizedName = name == null ? "" : name.trim();
+        String normalizedRoleName = roleName == null ? "" : roleName.trim();
         if (normalizedName.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query parameter 'name' is required.");
+        }
+        if (normalizedRoleName.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query parameter 'roleName' is required.");
         }
         if (dateString == null || dateString.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Query parameter 'date' is mandatory.");
@@ -251,7 +276,7 @@ public class BookingSlotController {
                     "All values in query parameter 'slots' must be greater than 0.");
         }
 
-        Object response = bookingSlotService.checkAvailabilityByResourceName(normalizedName, date, slots);
+        Object response = bookingSlotService.checkAvailabilityByResourceName(normalizedName, date, slots, normalizedRoleName);
         return ResponseEntity
                 .ok()
                 .cacheControl(CacheControl.noStore())
@@ -378,6 +403,16 @@ public class BookingSlotController {
     public ResponseEntity<ApproveBookingResponse> approveBooking(
             @Valid @RequestBody ApproveBookingRequest request) {
         ApproveBookingResponse response = bookingSlotService.approveBooking(request);
+        return ResponseEntity
+                .ok()
+                .cacheControl(CacheControl.noStore())
+                .body(response);
+    }
+
+    @PostMapping("/cancelBooking")
+    public ResponseEntity<CancelBookingResponse> cancelBooking(
+            @Valid @RequestBody CancelBookingRequest request) {
+        CancelBookingResponse response = bookingSlotService.cancelBooking(request);
         return ResponseEntity
                 .ok()
                 .cacheControl(CacheControl.noStore())

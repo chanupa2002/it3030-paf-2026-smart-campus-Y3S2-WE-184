@@ -195,7 +195,7 @@ public class FacilityCatalogService {
                     "This resource is already assigned to the given slot.");
         }
 
-        return jdbcTemplate.queryForObject(
+        DsResourceResponse response = jdbcTemplate.queryForObject(
                 """
                         INSERT INTO "Ds_resource" (slot_id, resource_id)
                         VALUES (?, ?)
@@ -206,6 +206,9 @@ public class FacilityCatalogService {
                         rs.getLong("resource_id")),
                 slotId,
                 resourceId);
+
+        notifyAdminsAboutTimetableConflicts(slotId, resourceId);
+        return response;
     }
 
     @Transactional
@@ -356,5 +359,92 @@ public class FacilityCatalogService {
             return java.util.Optional.empty();
         }
         return java.util.Optional.of(rows.get(0));
+    }
+
+    private void notifyAdminsAboutTimetableConflicts(Long slotId, Long resourceId) {
+        TimetableConflictContext context = jdbcTemplate.query(
+                """
+                        SELECT ds.day, ds.slot, r.name AS resource_name
+                        FROM "Ds_slot" ds
+                        INNER JOIN "Resource" r ON r.id = ?
+                        WHERE ds.slot_id = ?
+                        LIMIT 1
+                        """,
+                rs -> rs.next()
+                        ? new TimetableConflictContext(
+                                rs.getString("day"),
+                                (Long) rs.getObject("slot"),
+                                rs.getString("resource_name"))
+                        : null,
+                resourceId,
+                slotId);
+
+        if (context == null) {
+            return;
+        }
+
+        List<Long> conflictedBookingGroupIds = jdbcTemplate.query(
+                """
+                        SELECT DISTINCT COALESCE(rb.booking_group_id, rb.booking_id) AS booking_group_id
+                        FROM "Resource_booking" rb
+                        WHERE rb.resource_id = ?
+                          AND rb.timeslot_id = ?
+                          AND LOWER(TRIM(COALESCE(rb.status, ''))) IN ('pending', 'approved')
+                        ORDER BY COALESCE(rb.booking_group_id, rb.booking_id)
+                        """,
+                (rs, rowNum) -> rs.getLong("booking_group_id"),
+                resourceId,
+                slotId);
+
+        if (conflictedBookingGroupIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> adminUserIds = jdbcTemplate.query(
+                """
+                        SELECT u.user_id
+                        FROM "Users" u
+                        INNER JOIN "User_types" ut ON ut.usertype_id = u.type_id
+                        WHERE LOWER(TRIM(COALESCE(ut.role_name, ''))) = 'admin'
+                          AND COALESCE(u.active, TRUE) = TRUE
+                        ORDER BY u.user_id
+                        """,
+                (rs, rowNum) -> rs.getLong("user_id"));
+
+        if (adminUserIds.isEmpty()) {
+            return;
+        }
+
+        String bookingGroupText = conflictedBookingGroupIds.stream()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(", "));
+        String slotLabel = context.slot() == null
+                ? "unknown slot"
+                : context.slot() + ":00 - " + (context.slot() + 1) + ":00";
+        String notificationText = "Timetable conflict detected for resource '"
+                + (context.resourceName() == null || context.resourceName().isBlank()
+                        ? "Resource #" + resourceId
+                        : context.resourceName())
+                + "' at "
+                + (context.day() == null ? "unknown day" : context.day())
+                + " "
+                + slotLabel
+                + ". Conflicting booking_group_id values: "
+                + bookingGroupText
+                + ".";
+
+        for (Long adminUserId : adminUserIds) {
+            jdbcTemplate.update(
+                    """
+                            INSERT INTO "Notifications" (notification_type, notification, user_id)
+                            VALUES (?, ?, ?)
+                            """,
+                    "Booking",
+                    notificationText,
+                    adminUserId);
+        }
+    }
+
+    private record TimetableConflictContext(String day, Long slot, String resourceName) {
     }
 }

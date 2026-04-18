@@ -8,7 +8,7 @@ const BOOKING_SLOT_OPTIONS = Array.from({ length: 12 }, (_, index) => {
   };
 });
 
-const DEFAULT_BOOKING_DATE = getLocalDateInputValue();
+const DEFAULT_BOOKING_DATE = getTomorrowDateInputValue();
 
 export default function BookByTypePanel({ apiBaseUrl, roleName, token, userId }) {
   const [resourceTypes, setResourceTypes] = useState([]);
@@ -485,6 +485,15 @@ function formatFreeSlots(slots) {
 
 function getLocalDateInputValue() {
   const current = new Date();
+  const year = current.getFullYear();
+  const month = String(current.getMonth() + 1).padStart(2, "0");
+  const day = String(current.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTomorrowDateInputValue() {
+  const current = new Date();
+  current.setDate(current.getDate() + 1);
   const year = current.getFullYear();
   const month = String(current.getMonth() + 1).padStart(2, "0");
   const day = String(current.getDate()).padStart(2, "0");

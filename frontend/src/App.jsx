@@ -4,7 +4,9 @@ import AdminTimetablePanel from "./components/admin/AdminTimetablePanel";
 import ApprovedBookingsPanel from "./components/booking/ApprovedBookingsPanel";
 import BookByNamePanel from "./components/booking/BookByNamePanel";
 import BookByTypePanel from "./components/booking/BookByTypePanel";
+import CancelledBookingsPanelView from "./components/booking/CancelledBookingsPanel";
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
+import RejectedBookingsPanelView from "./components/booking/RejectedBookingsPanel";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const SESSION_KEY = "smart-campus.session";
@@ -1836,8 +1838,8 @@ function MyBookingsSection({ token, user }) {
   const activePanel = {
     approved: <ApprovedBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
     pending: <PendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-    rejected: <RejectedBookingsPanel />,
-    cancelled: <CancelledBookingsPanel />,
+    rejected: <RejectedBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    cancelled: <CancelledBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
   }[activeTab];
 
   return (
@@ -1935,7 +1937,7 @@ function BookResourceSection({ token, user }) {
     activeTab === "type" ? (
       <BookByTypePanel apiBaseUrl={API_BASE_URL} roleName={user?.roleName} token={token} userId={user?.userId} />
     ) : (
-      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />
+      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} roleName={user?.roleName} />
     );
 
   return (
