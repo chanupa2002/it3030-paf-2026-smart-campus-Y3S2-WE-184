@@ -8,9 +8,9 @@ const BOOKING_SLOT_OPTIONS = Array.from({ length: 12 }, (_, index) => {
   };
 });
 
-const DEFAULT_BOOKING_DATE = getLocalDateInputValue();
+const DEFAULT_BOOKING_DATE = getTomorrowDateInputValue();
 
-export default function BookByNamePanel({ apiBaseUrl, token, userId }) {
+export default function BookByNamePanel({ apiBaseUrl, token, userId, roleName }) {
   const [resourceName, setResourceName] = useState("");
   const [bookingDate, setBookingDate] = useState(DEFAULT_BOOKING_DATE);
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -72,6 +72,7 @@ export default function BookByNamePanel({ apiBaseUrl, token, userId }) {
     try {
       const params = new URLSearchParams({
         name: trimmedName,
+        roleName: roleName || "",
         date: bookingDate,
       });
 
@@ -82,7 +83,7 @@ export default function BookByNamePanel({ apiBaseUrl, token, userId }) {
       const response = await fetch(`${apiBaseUrl}/api/bookings/checkAvailabilityByResourceName?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const payload = await response.json().catch(() => null);
+      const payload = await parseApiPayload(response);
 
       if (!response.ok) {
         throw new Error(resolveMessage(payload));
@@ -474,10 +475,35 @@ function getLocalDateInputValue() {
   return `${year}-${month}-${day}`;
 }
 
+function getTomorrowDateInputValue() {
+  const current = new Date();
+  current.setDate(current.getDate() + 1);
+  const year = current.getFullYear();
+  const month = String(current.getMonth() + 1).padStart(2, "0");
+  const day = String(current.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function parseApiPayload(response) {
+  const raw = await response.text();
+  if (!raw.trim()) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw.trim() || response.statusText };
+  }
+}
+
 function resolveMessage(payload) {
+  if (typeof payload === "string" && payload.trim()) return payload;
   const message = payload?.message;
+  const detail = payload?.detail;
+  const error = payload?.error;
   if (Array.isArray(message)) return message.join(", ");
   if (typeof message === "string" && message.trim()) return message;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (typeof error === "string" && error.trim()) return error;
   return "Unable to complete the request right now.";
 }
 

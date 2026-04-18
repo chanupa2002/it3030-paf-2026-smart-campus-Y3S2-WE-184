@@ -28,6 +28,7 @@ public class AdminTimetableService {
                     ds.slot_id,
                     ds.day,
                     ds.slot,
+                    dr.resource_id,
                     r.name AS resource_name
                 FROM "Ds_slot" ds
                 LEFT JOIN "Ds_resource" dr ON dr.slot_id = ds.slot_id
@@ -53,6 +54,7 @@ public class AdminTimetableService {
                         rs.getLong("slot_id"),
                         rs.getString("day"),
                         rs.getLong("slot"),
+                        (Long) rs.getObject("resource_id"),
                         rs.getString("resource_name")));
 
         Map<String, AdminTimetableAccumulator> grouped = new LinkedHashMap<>();
@@ -65,6 +67,7 @@ public class AdminTimetableService {
                             row.day(),
                             row.slot(),
                             row.slotId()))
+                    .addResourceId(row.resourceId())
                     .addResourceName(row.resourceName());
         }
 
@@ -77,6 +80,7 @@ public class AdminTimetableService {
             Long slotId,
             String day,
             Long slot,
+            Long resourceId,
             String resourceName) {
     }
 
@@ -84,12 +88,20 @@ public class AdminTimetableService {
         private final String day;
         private final Long slot;
         private final Long slotId;
+        private final List<Long> resourceIds = new ArrayList<>();
         private final List<String> resourceNames = new ArrayList<>();
 
         private AdminTimetableAccumulator(String day, Long slot, Long slotId) {
             this.day = day;
             this.slot = slot;
             this.slotId = slotId;
+        }
+
+        private AdminTimetableAccumulator addResourceId(Long resourceId) {
+            if (resourceId != null) {
+                resourceIds.add(resourceId);
+            }
+            return this;
         }
 
         private AdminTimetableAccumulator addResourceName(String resourceName) {
@@ -104,6 +116,7 @@ public class AdminTimetableService {
                     day,
                     slot,
                     slotId,
+                    List.copyOf(resourceIds),
                     List.copyOf(resourceNames));
         }
     }

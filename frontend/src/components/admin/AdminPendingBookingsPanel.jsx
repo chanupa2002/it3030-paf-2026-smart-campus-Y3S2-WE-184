@@ -4,7 +4,9 @@ const DEFAULT_FILTER_DATE = getLocalDateInputValue();
 
 export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
   const [filterDate, setFilterDate] = useState(DEFAULT_FILTER_DATE);
+  const [statusFilter, setStatusFilter] = useState("pending");
   const [pendingBookings, setPendingBookings] = useState([]);
+  const [approvedBookings, setApprovedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -14,40 +16,45 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
   const [actionError, setActionError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const sortedBookings = useMemo(
-    () =>
-      [...pendingBookings].sort((left, right) => {
-        const leftId = left.booking_group_id ?? 0;
-        const rightId = right.booking_group_id ?? 0;
-        return rightId - leftId;
-      }),
-    [pendingBookings]
-  );
-
   useEffect(() => {
     const controller = new AbortController();
 
-    async function loadPendingBookings() {
+    async function loadBookings() {
       setLoading(true);
       setError("");
       setNotice("");
 
       try {
-        const response = await fetch(`${apiBaseUrl}/api/bookings/ViewPendingBookings`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => []);
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [pendingResponse, approvedResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/api/bookings/ViewPendingBookings`, {
+            headers,
+            signal: controller.signal,
+          }),
+          fetch(`${apiBaseUrl}/api/bookings/ViewApprovedBookings`, {
+            headers,
+            signal: controller.signal,
+          }),
+        ]);
 
-        if (!response.ok) {
-          throw new Error(resolveMessage(payload));
+        const pendingPayload = await pendingResponse.json().catch(() => []);
+        const approvedPayload = await approvedResponse.json().catch(() => []);
+
+        if (!pendingResponse.ok) {
+          throw new Error(resolveMessage(pendingPayload));
         }
 
-        setPendingBookings(Array.isArray(payload) ? payload : []);
+        if (!approvedResponse.ok) {
+          throw new Error(resolveMessage(approvedPayload));
+        }
+
+        setPendingBookings(Array.isArray(pendingPayload) ? pendingPayload : []);
+        setApprovedBookings(Array.isArray(approvedPayload) ? approvedPayload : []);
       } catch (requestError) {
         if (requestError.name === "AbortError") return;
         setPendingBookings([]);
-        setError(requestError.message || "Unable to load pending bookings right now.");
+        setApprovedBookings([]);
+        setError(requestError.message || "Unable to load bookings right now.");
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -55,14 +62,34 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
       }
     }
 
-    loadPendingBookings();
+    loadBookings();
     return () => controller.abort();
   }, [apiBaseUrl, token]);
 
-  const visibleBookings = useMemo(
-    () => sortedBookings.filter((booking) => !filterDate || booking.date === filterDate),
-    [filterDate, sortedBookings]
+  const sortedPendingBookings = useMemo(
+    () =>
+      [...pendingBookings].sort((left, right) => {
+        const leftCreated = new Date(left.created_at || 0).getTime();
+        const rightCreated = new Date(right.created_at || 0).getTime();
+        return leftCreated - rightCreated;
+      }),
+    [pendingBookings]
   );
+
+  const sortedApprovedBookings = useMemo(
+    () =>
+      [...approvedBookings].sort((left, right) => {
+        const leftCreated = new Date(left.created_at || 0).getTime();
+        const rightCreated = new Date(right.created_at || 0).getTime();
+        return rightCreated - leftCreated;
+      }),
+    [approvedBookings]
+  );
+
+  const visibleBookings = useMemo(() => {
+    const source = statusFilter === "approved" ? sortedApprovedBookings : sortedPendingBookings;
+    return source.filter((booking) => !filterDate || booking.date === filterDate);
+  }, [filterDate, sortedApprovedBookings, sortedPendingBookings, statusFilter]);
 
   const closeApproveModal = () => {
     if (isSubmitting) return;
@@ -104,6 +131,10 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
       setPendingBookings((current) =>
         current.filter((booking) => booking.booking_group_id !== approveTarget.booking_group_id)
       );
+      setApprovedBookings((current) => [
+        { ...approveTarget, status: "approved" },
+        ...current.filter((booking) => booking.booking_group_id !== approveTarget.booking_group_id),
+      ]);
       setNotice(payload?.message || `Booking group #${approveTarget.booking_group_id} approved successfully.`);
       setApproveTarget(null);
     } catch (requestError) {
@@ -160,13 +191,20 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
     <div className="book-resource-panel-card book-by-name-card">
       <div className="book-by-name-header">
         <div>
-          <h3>Pending Booking Approvals</h3>
-          <p>Review pending booking groups, approve them, or reject them with a reason.</p>
+          <h3>Bookings</h3>
+          <p>Review pending and approved booking groups. Pending requests are ordered oldest first.</p>
         </div>
       </div>
 
       <div className="availability-search-shell">
         <div className="availability-search-grid">
+          <label className="availability-field">
+            <span>Status</span>
+            <select onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+            </select>
+          </label>
           <label className="availability-field">
             <span>Booking Date</span>
             <input onChange={(event) => setFilterDate(event.target.value)} type="date" value={filterDate} />
@@ -178,48 +216,63 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
       </div>
 
       {loading ? (
-        <div className="availability-feedback availability-feedback-neutral">Loading pending bookings...</div>
+        <div className="availability-feedback availability-feedback-neutral">Loading bookings...</div>
       ) : visibleBookings.length > 0 ? (
         <div className="availability-slot-results">
-          {visibleBookings.map((booking) => (
-            <article className="availability-slot-card" key={booking.booking_group_id ?? booking.booking_ids?.join("-")}>
-              <span className="availability-slot-card-label">Pending</span>
-              <strong>Booking Group #{booking.booking_group_id ?? "N/A"}</strong>
-              <p>Purpose: {booking.purpose || "Not provided"}</p>
-              <p>Date: {formatBookingDate(booking.date)}</p>
-              <p>Created: {formatCreatedAt(booking.created_at)}</p>
-              <p>Attendees: {booking.attendees ?? "N/A"}</p>
-              <p>Resource: {booking.resource_name || `Resource #${booking.resource_id ?? "N/A"}`}</p>
-              <p>User ID: {booking.user_id ?? "N/A"}</p>
-              <p>Slots: {formatIds(booking.slots)}</p>
-              <div className="booking-admin-actions">
-                <button
-                  className="booking-admin-primary"
-                  onClick={() => {
-                    setApproveTarget(booking);
-                    setActionError("");
-                  }}
-                  type="button"
-                >
-                  Approve
-                </button>
-                <button
-                  className="booking-admin-danger"
-                  onClick={() => {
-                    setRejectTarget(booking);
-                    setActionError("");
-                  }}
-                  type="button"
-                >
-                  Reject
-                </button>
-              </div>
-            </article>
-          ))}
+          {visibleBookings.map((booking) => {
+            const actionLocked = statusFilter === "pending" && isApprovalWindowExpired(booking.created_at);
+
+            return (
+              <article className="availability-slot-card" key={booking.booking_group_id ?? booking.booking_ids?.join("-")}>
+                <span className="availability-slot-card-label">{statusFilter === "pending" ? "Pending" : "Approved"}</span>
+                <strong>Booking Group #{booking.booking_group_id ?? "N/A"}</strong>
+                <p>Purpose: {booking.purpose || "Not provided"}</p>
+                <p>Date: {formatBookingDate(booking.date)}</p>
+                <p>Created: {formatCreatedAt(booking.created_at)}</p>
+                <p>Attendees: {booking.attendees ?? "N/A"}</p>
+                <p>Resource: {booking.resource_name || `Resource #${booking.resource_id ?? "N/A"}`}</p>
+                <p>User ID: {booking.user_id ?? "N/A"}</p>
+                <p>Slots: {formatIds(booking.slots)}</p>
+                {statusFilter === "pending" ? (
+                  actionLocked ? (
+                    <p>Approval window expired. Booking actions were only allowed within 72 hours of creation.</p>
+                  ) : (
+                    <p>Approve or reject this booking within 72 hours of {formatCreatedAt(booking.created_at)}.</p>
+                  )
+                ) : null}
+                {statusFilter === "pending" ? (
+                  <div className="booking-admin-actions">
+                    <button
+                      className="booking-admin-primary"
+                      disabled={actionLocked}
+                      onClick={() => {
+                        setApproveTarget(booking);
+                        setActionError("");
+                      }}
+                      type="button"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="booking-admin-danger"
+                      disabled={actionLocked}
+                      onClick={() => {
+                        setRejectTarget(booking);
+                        setActionError("");
+                      }}
+                      type="button"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <div className="availability-feedback availability-feedback-neutral">
-          No pending bookings were found for the selected booking date.
+          No {statusFilter} bookings were found for the selected booking date.
         </div>
       )}
 
@@ -289,6 +342,14 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
       ) : null}
     </div>
   );
+}
+
+function isApprovalWindowExpired(value) {
+  if (!value) return false;
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) return false;
+  const deadline = new Date(createdAt.getTime() + 72 * 60 * 60 * 1000);
+  return new Date() > deadline;
 }
 
 function formatBookingDate(value) {

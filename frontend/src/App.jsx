@@ -4,7 +4,9 @@ import AdminTimetablePanel from "./components/admin/AdminTimetablePanel";
 import ApprovedBookingsPanel from "./components/booking/ApprovedBookingsPanel";
 import BookByNamePanel from "./components/booking/BookByNamePanel";
 import BookByTypePanel from "./components/booking/BookByTypePanel";
+import CancelledBookingsPanelView from "./components/booking/CancelledBookingsPanel";
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
+import RejectedBookingsPanelView from "./components/booking/RejectedBookingsPanel";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
   /\/$/,
@@ -2964,6 +2966,14 @@ function AdminUsersSection({ token }) {
   const [deletingUser, setDeletingUser] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+function MyBookingsSection({ token, user }) {
+  const [activeTab, setActiveTab] = useState("approved");
+  const activePanel = {
+    approved: <ApprovedBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    pending: <PendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    rejected: <RejectedBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+    cancelled: <CancelledBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
+  }[activeTab];
 
   const queryValue = query.trim().toLowerCase();
   const roleOptions = useMemo(
@@ -3548,6 +3558,7 @@ function BookResourceSection({ token, user }) {
         token={token}
         userId={user?.userId}
       />
+      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} roleName={user?.roleName} />
     );
 
   return (
