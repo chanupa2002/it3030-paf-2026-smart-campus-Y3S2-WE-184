@@ -25,6 +25,10 @@ public class OAuthUpdateRequest {
     @Size(max = 255, message = "Address must not exceed 255 characters")
     private String address;
 
+    @Size(min = 4, max = 50, message = "Username must be between 4 and 50 characters")
+    @Pattern(regexp = "^[A-Za-z0-9_]+$", message = "Username can only contain letters, numbers, and underscores")
+    private String username;
+
     @NotBlank(message = "Role name is required")
     @Pattern(
             regexp = "^(?i)(Student|Lecturer|Instructor|Technician|Admin)$",

@@ -7,11 +7,15 @@ import BookByTypePanel from "./components/booking/BookByTypePanel";
 import CancelledBookingsPanelView from "./components/booking/CancelledBookingsPanel";
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
 import RejectedBookingsPanelView from "./components/booking/RejectedBookingsPanel";
+import RegisterUser from "./components/registerUser";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
   /\/$/,
   "",
 );
+const OAUTH_BASE_URL =
+  API_BASE_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8080`;
 const SESSION_KEY = "smart-campus.session";
 const THEME_KEY = "smart-campus.theme";
 
@@ -418,16 +422,39 @@ function readRoute() {
   if (hash.startsWith("#/dashboard/")) {
     return { type: "dashboard", hash };
   }
+  if (hash === "#/register") {
+    return { type: "register", hash };
+  }
   return { type: "login", hash: "#/login" };
 }
 
 function setHash(nextHash, replace = false) {
   const value = nextHash.startsWith("#") ? nextHash : `#${nextHash}`;
+  const nextUrl =
+    replace && window.location.pathname.startsWith("/oauth2/callback")
+      ? `/${value}`
+      : value;
   if (replace) {
-    window.history.replaceState(null, "", value);
+    window.history.replaceState(null, "", nextUrl);
   } else {
     window.location.hash = value;
   }
+}
+
+function readOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  const userId = Number(params.get("userId"));
+
+  if (!token || !Number.isFinite(userId) || userId <= 0) {
+    return null;
+  }
+
+  return {
+    token,
+    userId,
+    oauthRegistration: params.get("oauthRegistration") === "true",
+  };
 }
 
 function getMessage(payload) {
@@ -559,6 +586,7 @@ function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [session, setSession] = useState(readSession);
   const [route, setRoute] = useState(readRoute);
+  const [oauthCompletion, setOauthCompletion] = useState(null);
   const [active, setActive] = useState({
     academic: "dashboard",
     technician: "dashboard",
@@ -583,7 +611,7 @@ function App() {
 
   useEffect(() => {
     if (!session) {
-      if (route.type !== "login") {
+      if (route.type !== "login" && route.type !== "register") {
         setHash("#/login", true);
         setRoute(readRoute());
       }
@@ -596,6 +624,53 @@ function App() {
       setRoute(readRoute());
     }
   }, [route, session]);
+
+  useEffect(() => {
+    const oauthCallback = readOAuthCallback();
+    if (!oauthCallback) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function completeOAuthLogin() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/users/${oauthCallback.userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${oauthCallback.token}`,
+            },
+          },
+        );
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(getMessage(payload));
+        if (cancelled) return;
+
+        handleLoginSuccess({
+          token: oauthCallback.token,
+          user: payload,
+        });
+
+        if (oauthCallback.oauthRegistration) {
+          setOauthCompletion({
+            token: oauthCallback.token,
+            user: payload,
+          });
+        }
+      } catch {
+        if (cancelled) return;
+        setHash("#/login", true);
+        setRoute(readRoute());
+      }
+    }
+
+    completeOAuthLogin();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const group = resolveGroup(session?.user?.roleName);
   const config = group ? DASHBOARDS[group] : null;
@@ -636,14 +711,34 @@ function App() {
   const logout = () => {
     storeSession(null);
     setSession(null);
+    setOauthCompletion(null);
     setHash("#/login", true);
     setRoute(readRoute());
   };
 
   if (!session || !group || !config) {
+    if (route.type === "register") {
+      return (
+        <RegisterUser
+          apiBaseUrl={API_BASE_URL}
+          onRegisterSuccess={handleLoginSuccess}
+          onShowLogin={() => {
+            setHash("#/login");
+            setRoute(readRoute());
+          }}
+          onThemeToggle={toggleTheme}
+          theme={theme}
+        />
+      );
+    }
+
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
+        onShowRegister={() => {
+          setHash("#/register");
+          setRoute(readRoute());
+        }}
         onThemeToggle={toggleTheme}
         theme={theme}
       />
@@ -651,24 +746,37 @@ function App() {
   }
 
   return (
-    <DashboardPage
-      activeSection={activeSection}
-      config={config}
-      group={group}
-      onLogout={logout}
-      onSectionChange={(sectionId) =>
-        setActive((value) => ({ ...value, [group]: sectionId }))
-      }
-      onThemeToggle={toggleTheme}
-      sections={sections}
-      token={session.token}
-      theme={theme}
-      user={session.user}
-    />
+    <>
+      <DashboardPage
+        activeSection={activeSection}
+        config={config}
+        group={group}
+        onLogout={logout}
+        onSectionChange={(sectionId) =>
+          setActive((value) => ({ ...value, [group]: sectionId }))
+        }
+        onThemeToggle={toggleTheme}
+        sections={sections}
+        token={session.token}
+        theme={theme}
+        user={session.user}
+      />
+      {oauthCompletion ? (
+        <OAuthRegistrationModal
+          apiBaseUrl={API_BASE_URL}
+          onSuccess={(response) => {
+            handleLoginSuccess(response);
+            setOauthCompletion(null);
+          }}
+          token={oauthCompletion.token}
+          user={oauthCompletion.user}
+        />
+      ) : null}
+    </>
   );
 }
 
-function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
+function LoginPage({ onLoginSuccess, onShowRegister, onThemeToggle, theme }) {
   const RESET_CODE_TTL_SECONDS = 10 * 60;
   const MAX_CODE_ATTEMPTS = 3;
 
@@ -685,6 +793,9 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
   const [resetCode, setResetCode] = useState("");
   const [resetNewPassword, setResetNewPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] =
+    useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState("");
   const [resetInfo, setResetInfo] = useState("");
@@ -699,6 +810,8 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
     setResetCode("");
     setResetNewPassword("");
     setResetConfirmPassword("");
+    setShowResetNewPassword(false);
+    setShowResetConfirmPassword(false);
     setResetError("");
     setResetInfo("");
     setRemainingAttempts(MAX_CODE_ATTEMPTS);
@@ -712,6 +825,8 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
     setResetCode("");
     setResetNewPassword("");
     setResetConfirmPassword("");
+    setShowResetNewPassword(false);
+    setShowResetConfirmPassword(false);
     setResetError("");
     setResetInfo("");
     setRemainingAttempts(MAX_CODE_ATTEMPTS);
@@ -726,6 +841,8 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
     setResetCode("");
     setResetNewPassword("");
     setResetConfirmPassword("");
+    setShowResetNewPassword(false);
+    setShowResetConfirmPassword(false);
     setResetError("");
     setResetInfo(message);
     setRemainingAttempts(MAX_CODE_ATTEMPTS);
@@ -781,6 +898,10 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
     }
   };
 
+  const continueWithGoogle = () => {
+    window.location.href = `${OAUTH_BASE_URL}/oauth2/authorization/google`;
+  };
+
   const submitResetEmail = async (event) => {
     event.preventDefault();
     const normalizedEmail = resetEmail.trim();
@@ -812,6 +933,8 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
       setResetCode("");
       setResetNewPassword("");
       setResetConfirmPassword("");
+      setShowResetNewPassword(false);
+      setShowResetConfirmPassword(false);
       setRemainingAttempts(MAX_CODE_ATTEMPTS);
       setResetExpiresAt(Date.now() + RESET_CODE_TTL_SECONDS * 1000);
       setResetSecondsLeft(RESET_CODE_TTL_SECONDS);
@@ -1032,9 +1155,21 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
                 {loading ? "Signing in..." : "Login"}
               </button>
 
-              <button className="secondary-button google-button" type="button">
+              <button
+                className="secondary-button google-button"
+                onClick={continueWithGoogle}
+                type="button"
+              >
                 <GoogleIcon />
                 <span>Continue with Google</span>
+              </button>
+
+              <button
+                className="text-button field-link"
+                onClick={onShowRegister}
+                type="button"
+              >
+                Create a user account
               </button>
             </form>
           </div>
@@ -1186,30 +1321,52 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
               >
                 <label className="modal-field modal-field-full">
                   <span>New Password</span>
-                  <input
-                    autoComplete="new-password"
-                    onChange={(event) =>
-                      setResetNewPassword(event.target.value)
-                    }
-                    placeholder="Enter new password"
-                    required
-                    type="password"
-                    value={resetNewPassword}
-                  />
+                  <div className="password-wrap">
+                    <input
+                      autoComplete="new-password"
+                      onChange={(event) =>
+                        setResetNewPassword(event.target.value)
+                      }
+                      placeholder="Enter new password"
+                      required
+                      type={showResetNewPassword ? "text" : "password"}
+                      value={resetNewPassword}
+                    />
+                    <button
+                      className="icon-button"
+                      onClick={() =>
+                        setShowResetNewPassword((value) => !value)
+                      }
+                      type="button"
+                    >
+                      {showResetNewPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </label>
 
                 <label className="modal-field modal-field-full">
                   <span>Confirm Password</span>
-                  <input
-                    autoComplete="new-password"
-                    onChange={(event) =>
-                      setResetConfirmPassword(event.target.value)
-                    }
-                    placeholder="Confirm new password"
-                    required
-                    type="password"
-                    value={resetConfirmPassword}
-                  />
+                  <div className="password-wrap">
+                    <input
+                      autoComplete="new-password"
+                      onChange={(event) =>
+                        setResetConfirmPassword(event.target.value)
+                      }
+                      placeholder="Confirm new password"
+                      required
+                      type={showResetConfirmPassword ? "text" : "password"}
+                      value={resetConfirmPassword}
+                    />
+                    <button
+                      className="icon-button"
+                      onClick={() =>
+                        setShowResetConfirmPassword((value) => !value)
+                      }
+                      type="button"
+                    >
+                      {showResetConfirmPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </label>
 
                 <p className="forgot-password-hint">
@@ -1246,6 +1403,101 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function OAuthRegistrationModal({
+  apiBaseUrl,
+  onSuccess,
+  token,
+  user,
+}) {
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername) {
+      setError("Username is required.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/api/users/oAuthUpdate/${user?.userId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: normalizedUsername,
+            roleName: user?.roleName || "Student",
+          }),
+        },
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(getMessage(payload));
+
+      onSuccess(payload);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to complete OAuth registration.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <div
+        className="modal-card forgot-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="oauth-registration-title"
+      >
+        <div className="modal-header">
+          <h3 id="oauth-registration-title">Complete your profile</h3>
+          <p>
+            Your Google sign-in worked. Choose a username to finish your
+            registration.
+          </p>
+        </div>
+
+        <form className="auth-form forgot-form" onSubmit={submit}>
+          <label className="modal-field modal-field-full">
+            <span>Username</span>
+            <input
+              autoComplete="username"
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Choose a username"
+              required
+              type="text"
+              value={username}
+            />
+          </label>
+
+          {error ? <div className="modal-inline-error">{error}</div> : null}
+
+          <div className="modal-actions">
+            <button
+              className="modal-primary-button"
+              disabled={loading}
+              type="submit"
+            >
+              {loading ? "Saving..." : "Save Username"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ package com.uninode.smartcampus.common.security;
 import java.io.IOException;
 
 import com.uninode.smartcampus.modules.users.dto.AuthResponse;
+import com.uninode.smartcampus.modules.users.repository.UserRepository;
 import com.uninode.smartcampus.modules.users.service.UserService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserService userService;
+    private final UserRepository userRepository;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -40,6 +42,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             return;
         }
 
+        boolean isNewUser = userRepository.findByEmail(email).isEmpty();
         AuthResponse authResponse = userService.handleOAuthLogin(email, name);
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
@@ -47,6 +50,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 .queryParam("userId", authResponse.getUser().getUserId())
                 .queryParam("email", authResponse.getUser().getEmail())
                 .queryParam("role", authResponse.getUser().getRoleName())
+                .queryParam("oauthRegistration", isNewUser)
                 .build()
                 .toUriString();
 

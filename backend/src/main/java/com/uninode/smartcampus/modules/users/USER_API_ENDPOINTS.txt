@@ -166,6 +166,7 @@ Sample body
   "name": "OAuth User Updated",
   "phone": "0770001112",
   "address": "78 Temple Road, Kandy",
+  "username": "oauth_user",
   "roleName": "Student"
 }
 

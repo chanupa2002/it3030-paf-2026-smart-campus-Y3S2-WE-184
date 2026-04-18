@@ -219,6 +219,16 @@ public class UserServiceImpl implements UserService {
             user.setAddress(request.getAddress());
         }
 
+        if (request.getUsername() != null) {
+            boolean usernameTaken = userRepository.findByUsername(request.getUsername())
+                    .filter(existingUser -> !existingUser.getUserId().equals(id))
+                    .isPresent();
+            if (usernameTaken) {
+                throw new DuplicateUserException("Username is already in use");
+            }
+            user.setUsername(request.getUsername());
+        }
+
         UserType userType = userTypeRepository.findByRoleNameIgnoreCase(request.getRoleName().trim())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid role name: " + request.getRoleName()));
         user.setUserType(userType);
