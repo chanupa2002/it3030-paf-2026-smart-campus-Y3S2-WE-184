@@ -29,6 +29,17 @@ spring:
   sql:
     init:
       mode: never
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
   security:
     oauth2:
       client:
@@ -54,5 +65,7 @@ jwt:
 app:
   upload:
     dir: uploads/tickets
+  mail:
+    from: ${MAIL_FROM:no-reply@smartcampus.local}
   oauth2:
     redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/callback}

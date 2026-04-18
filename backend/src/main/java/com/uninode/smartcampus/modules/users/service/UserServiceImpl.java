@@ -2,24 +2,35 @@ package com.uninode.smartcampus.modules.users.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 
 import com.uninode.smartcampus.common.security.JwtUtils;
 import com.uninode.smartcampus.modules.users.dto.AuthResponse;
 import com.uninode.smartcampus.modules.users.dto.LoginRequest;
 import com.uninode.smartcampus.modules.users.dto.OAuthUpdateRequest;
+import com.uninode.smartcampus.modules.users.dto.PasswordResetConfirmRequest;
+import com.uninode.smartcampus.modules.users.dto.PasswordResetRequest;
+import com.uninode.smartcampus.modules.users.dto.PasswordResetVerifyRequest;
+import com.uninode.smartcampus.modules.users.dto.PasswordResetVerifyResponse;
 import com.uninode.smartcampus.modules.users.dto.RegisterRequest;
 import com.uninode.smartcampus.modules.users.dto.UpdateUserRequest;
 import com.uninode.smartcampus.modules.users.dto.UserResponse;
 import com.uninode.smartcampus.modules.users.dto.UserTypeResponse;
+import com.uninode.smartcampus.modules.users.entity.PasswordReset;
 import com.uninode.smartcampus.modules.users.entity.User;
 import com.uninode.smartcampus.modules.users.entity.UserType;
 import com.uninode.smartcampus.modules.users.exception.DuplicateUserException;
 import com.uninode.smartcampus.modules.users.exception.UserNotFoundException;
+import com.uninode.smartcampus.modules.users.repository.PasswordResetRepository;
 import com.uninode.smartcampus.modules.users.repository.UserRepository;
 import com.uninode.smartcampus.modules.users.repository.UserTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,10 +42,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
+    private static final int RESET_CODE_LENGTH = 6;
+    private static final long RESET_EXPIRY_MINUTES = 10;
+    private static final long MAX_RESET_ATTEMPTS = 3;
+
     private final UserRepository userRepository;
     private final UserTypeRepository userTypeRepository;
+    private final PasswordResetRepository passwordResetRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final JavaMailSender javaMailSender;
+
+    @Value("${app.mail.from:${spring.mail.username:no-reply@smartcampus.local}}")
+    private String mailFrom;
 
     @Override
     @Transactional
@@ -88,6 +108,76 @@ public class UserServiceImpl implements UserService {
                 .token(token)
                 .user(toUserResponse(user))
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void requestPasswordReset(PasswordResetRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            log.info("Password reset requested for non-existing email={}", email);
+            return;
+        }
+
+        User user = userOptional.get();
+
+        List<PasswordReset> activeResets = passwordResetRepository.findByUserUserIdAndStatusTrue(user.getUserId());
+        if (!activeResets.isEmpty()) {
+            activeResets.forEach(reset -> reset.setStatus(Boolean.FALSE));
+            passwordResetRepository.saveAll(activeResets);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String code = generateResetCode();
+
+        PasswordReset passwordReset = PasswordReset.builder()
+                .user(user)
+                .createdAt(now)
+                .code(code)
+                .attempts(0L)
+                .status(Boolean.TRUE)
+                .expiresAt(now.plusMinutes(RESET_EXPIRY_MINUTES))
+                .build();
+
+        passwordResetRepository.save(passwordReset);
+        sendResetCodeEmail(user.getEmail(), code);
+
+        log.info("Password reset code generated for user id={} email={}", user.getUserId(), user.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public PasswordResetVerifyResponse verifyPasswordResetCode(PasswordResetVerifyRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isEmpty()) {
+            return PasswordResetVerifyResponse.builder()
+                    .valid(false)
+                    .message("Invalid or expired reset code")
+                    .build();
+        }
+
+        return validateResetCode(userOptional.get(), request.getCode(), false);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(PasswordResetConfirmRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BadCredentialsException("Invalid or expired reset code"));
+
+        PasswordResetVerifyResponse verification = validateResetCode(user, request.getCode(), true);
+        if (!verification.isValid()) {
+            throw new BadCredentialsException("Invalid or expired reset code");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        log.info("Password reset completed for user id={} email={}", user.getUserId(), user.getEmail());
     }
 
     @Override
@@ -284,5 +374,91 @@ public class UserServiceImpl implements UserService {
             return "OAuth User";
         }
         return email.substring(0, email.indexOf('@'));
+    }
+
+    private PasswordResetVerifyResponse validateResetCode(User user, String code, boolean consumeOnSuccess) {
+        Optional<PasswordReset> latestResetOptional = passwordResetRepository
+                .findTopByUserUserIdAndStatusTrueOrderByCreatedAtDesc(user.getUserId());
+
+        if (latestResetOptional.isEmpty()) {
+            return PasswordResetVerifyResponse.builder()
+                    .valid(false)
+                    .message("Invalid or expired reset code")
+                    .build();
+        }
+
+        PasswordReset latestReset = latestResetOptional.get();
+        LocalDateTime now = LocalDateTime.now();
+
+        if (latestReset.getExpiresAt() == null || latestReset.getExpiresAt().isBefore(now)) {
+            latestReset.setStatus(Boolean.FALSE);
+            passwordResetRepository.save(latestReset);
+            return PasswordResetVerifyResponse.builder()
+                    .valid(false)
+                    .message("Invalid or expired reset code")
+                    .build();
+        }
+
+        long attempts = latestReset.getAttempts() == null ? 0L : latestReset.getAttempts();
+        if (attempts >= MAX_RESET_ATTEMPTS) {
+            latestReset.setStatus(Boolean.FALSE);
+            passwordResetRepository.save(latestReset);
+            return PasswordResetVerifyResponse.builder()
+                    .valid(false)
+                    .message("Invalid or expired reset code")
+                    .build();
+        }
+
+        if (!latestReset.getCode().equals(code)) {
+            latestReset.setAttempts(attempts + 1);
+            if (latestReset.getAttempts() >= MAX_RESET_ATTEMPTS) {
+                latestReset.setStatus(Boolean.FALSE);
+            }
+            passwordResetRepository.save(latestReset);
+            return PasswordResetVerifyResponse.builder()
+                    .valid(false)
+                    .message("Invalid or expired reset code")
+                    .build();
+        }
+
+        if (consumeOnSuccess) {
+            latestReset.setStatus(Boolean.FALSE);
+            passwordResetRepository.save(latestReset);
+        }
+
+        return PasswordResetVerifyResponse.builder()
+                .valid(true)
+                .message("Reset code is valid")
+                .build();
+    }
+
+    private String generateResetCode() {
+        int upperBound = (int) Math.pow(10, RESET_CODE_LENGTH);
+        int value = ThreadLocalRandom.current().nextInt(upperBound);
+        return String.format("%0" + RESET_CODE_LENGTH + "d", value);
+    }
+
+    private void sendResetCodeEmail(String recipientEmail, String code) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(recipientEmail);
+            if (mailFrom != null && !mailFrom.isBlank()) {
+                message.setFrom(mailFrom.trim());
+            }
+            message.setSubject("Smart Campus Password Reset Code");
+            message.setText(
+                    "Your Smart Campus password reset code is: " + code + "\n\n"
+                            + "This code expires in " + RESET_EXPIRY_MINUTES + " minutes.\n"
+                            + "If you did not request this, you can safely ignore this email."
+            );
+            javaMailSender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send password reset email to {}", recipientEmail, ex);
+            throw new IllegalStateException("Unable to send password reset code email. Please try again.");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim();
     }
 }

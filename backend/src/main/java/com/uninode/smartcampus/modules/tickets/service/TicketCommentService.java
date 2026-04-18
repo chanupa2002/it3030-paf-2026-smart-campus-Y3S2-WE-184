@@ -15,6 +15,7 @@ import com.uninode.smartcampus.modules.tickets.exception.TicketNotFoundException
 import com.uninode.smartcampus.modules.tickets.exception.TicketUnauthorizedException;
 import com.uninode.smartcampus.modules.tickets.repository.TicketCommentRepository;
 import com.uninode.smartcampus.modules.tickets.repository.TicketRepository;
+import com.uninode.smartcampus.modules.notifications.service.TicketCommentNotificationService;
 import com.uninode.smartcampus.modules.users.entity.User;
 import com.uninode.smartcampus.modules.users.repository.UserRepository;
 
@@ -29,6 +30,7 @@ public class TicketCommentService {
     private final TicketCommentRepository commentRepository;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final TicketCommentNotificationService ticketCommentNotificationService;
 
     public CommentResponse addComment(Long ticketId, AddCommentRequest request, Long userId) {
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -45,6 +47,7 @@ public class TicketCommentService {
                 .build();
 
         TicketComment savedComment = commentRepository.save(comment);
+        ticketCommentNotificationService.notifyRecipients(savedComment);
         return mapToResponse(savedComment);
     }
 
