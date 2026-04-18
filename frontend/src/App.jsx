@@ -364,6 +364,12 @@ function decodeJwt(token) {
   }
 }
 
+function isJwtExpired(jwt) {
+  const expiry = Number(jwt?.exp);
+  if (!Number.isFinite(expiry) || expiry <= 0) return true;
+  return expiry * 1000 <= Date.now();
+}
+
 function getInitialTheme() {
   const stored = window.localStorage.getItem(THEME_KEY);
   if (stored === "light" || stored === "dark") return stored;
@@ -381,11 +387,16 @@ function readSession() {
     if (!parsed?.token) return null;
 
     const jwt = decodeJwt(parsed.token);
+    if (!jwt || isJwtExpired(jwt)) {
+      window.localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+
     return {
       ...parsed,
       user: {
         ...(parsed.user || {}),
-        roleName: parsed?.user?.roleName || jwt?.role || null,
+        roleName: jwt?.role || parsed?.user?.roleName || null,
       },
     };
   } catch {
@@ -1065,24 +1076,6 @@ function LoginPage({ onLoginSuccess, onThemeToggle, theme }) {
                     ? "Enter the code sent to your email."
                     : "Set a new password for your account."}
               </p>
-            </div>
-
-            <div className="forgot-meta-row">
-              <span
-                className={`forgot-step-chip ${resetStep === "email" ? "forgot-step-chip-active" : ""}`}
-              >
-                1. Email
-              </span>
-              <span
-                className={`forgot-step-chip ${resetStep === "code" ? "forgot-step-chip-active" : ""}`}
-              >
-                2. Code
-              </span>
-              <span
-                className={`forgot-step-chip ${resetStep === "password" ? "forgot-step-chip-active" : ""}`}
-              >
-                3. Password
-              </span>
             </div>
 
             {(resetStep === "code" || resetStep === "password") &&
@@ -2966,14 +2959,6 @@ function AdminUsersSection({ token }) {
   const [deletingUser, setDeletingUser] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-function MyBookingsSection({ token, user }) {
-  const [activeTab, setActiveTab] = useState("approved");
-  const activePanel = {
-    approved: <ApprovedBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-    pending: <PendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-    rejected: <RejectedBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-    cancelled: <CancelledBookingsPanelView apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} />,
-  }[activeTab];
 
   const queryValue = query.trim().toLowerCase();
   const roleOptions = useMemo(
@@ -3439,8 +3424,20 @@ function MyBookingsSection({ token, user }) {
         userId={user?.userId}
       />
     ),
-    rejected: <RejectedBookingsPanel />,
-    cancelled: <CancelledBookingsPanel />,
+    rejected: (
+      <RejectedBookingsPanelView
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+        userId={user?.userId}
+      />
+    ),
+    cancelled: (
+      <CancelledBookingsPanelView
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+        userId={user?.userId}
+      />
+    ),
   }[activeTab];
 
   return (
@@ -3557,8 +3554,8 @@ function BookResourceSection({ token, user }) {
         apiBaseUrl={API_BASE_URL}
         token={token}
         userId={user?.userId}
+        roleName={user?.roleName}
       />
-      <BookByNamePanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId} roleName={user?.roleName} />
     );
 
   return (
