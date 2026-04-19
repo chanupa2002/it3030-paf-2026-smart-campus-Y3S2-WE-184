@@ -40,7 +40,7 @@ public class Ticket {
     @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = PriorityConverter.class)
     @Column(name = "priority", nullable = false)
     private Priority priority;
 
@@ -54,7 +54,7 @@ public class Ticket {
     @Column(name = "contact_number")
     private String contactNumber;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = TicketStatusConverter.class)
     @Column(name = "status", nullable = false)
     private TicketStatus status;
 
