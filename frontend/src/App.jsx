@@ -8,15 +8,10 @@ import CancelledBookingsPanelView from "./components/booking/CancelledBookingsPa
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
 import RaiseTicketPanel from "./components/tickets/RaiseTicketPanel";
 import TicketManagementPanel from "./components/tickets/TicketManagementPanel";
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 import RejectedBookingsPanelView from "./components/booking/RejectedBookingsPanel";
 import RegisterUser from "./components/registerUser";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(
-  /\/$/,
-  "",
-);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const OAUTH_BASE_URL =
   API_BASE_URL ||
   `${window.location.protocol}//${window.location.hostname}:8080`;
@@ -256,7 +251,7 @@ const ADMIN_SECTIONS = [
     searchPlaceholder: "",
     buttonLabel: "",
     items: [],
-  },,
+  },
   {
     id: "admin-users",
     label: "Users",
@@ -1744,8 +1739,6 @@ function DashboardPage({
   const shouldShowMyTickets = activeView === "my-tickets";
   const shouldShowRaiseTicket = activeView === "raise-ticket";
   const shouldShowAdminResourceManagement = activeView === "admin-resource-management";
-  const shouldShowAdminResourceManagement =
-    activeView === "admin-resource-management";
   const shouldShowAdminUsers = activeView === "admin-users";
   const shouldShowAdminBookings = activeView === "admin-bookings";
   const shouldShowAdminTimetable = activeView === "admin-timetable";
@@ -1972,32 +1965,6 @@ function DashboardPage({
                   ? "dashboard-content-panel-resources"
                   : shouldShowAdminResourceManagement
                     ? "dashboard-content-panel-resources"
-                  : shouldShowAdminBookings
-                    ? "dashboard-content-panel-book-resource"
-                  : shouldShowAdminTimetable
-                    ? "dashboard-content-panel-resources"
-                  : shouldShowSettingsProfile
-                    ? "dashboard-content-panel-settings"
-                  : shouldShowMyBookings
-                    ? "dashboard-content-panel-book-resource"
-                  : shouldShowBookResource
-                    ? "dashboard-content-panel-book-resource"
-                    : shouldShowMyTickets
-                      ? "dashboard-content-panel-book-resource"
-                      : shouldShowRaiseTicket
-                        ? "dashboard-content-panel-book-resource"
-                        : "dashboard-content-empty"
-              }`}
-            >
-              {shouldShowResources ? <ResourcesSection token={token} /> : null}
-              {shouldShowAdminResourceManagement ? <AdminResourceManagementSection token={token} /> : null}
-              {shouldShowAdminBookings ? <AdminPendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
-              {shouldShowAdminTimetable ? <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
-              {shouldShowMyBookings ? <MyBookingsSection token={token} user={user} /> : null}
-              {shouldShowBookResource ? <BookResourceSection token={token} user={user} /> : null}
-              {shouldShowMyTickets ? <MyTicketsSection apiBaseUrl={API_BASE_URL} token={token} user={user} /> : null}
-              {shouldShowRaiseTicket ? <RaiseTicketPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId || user?.id} /> : null}
-              {shouldShowSettingsProfile ? <SettingsProfileSection user={user} /> : null}
                     : shouldShowAdminUsers
                       ? "dashboard-content-panel-resources"
                       : shouldShowAdminBookings
@@ -2012,38 +1979,21 @@ function DashboardPage({
                                 ? "dashboard-content-panel-book-resource"
                                 : shouldShowMyTickets
                                   ? "dashboard-content-panel-book-resource"
-                                  : "dashboard-content-empty"
+                                  : shouldShowRaiseTicket
+                                    ? "dashboard-content-panel-book-resource"
+                                    : "dashboard-content-empty"
               }`}
             >
               {shouldShowResources ? <ResourcesSection token={token} /> : null}
-              {shouldShowAdminResourceManagement ? (
-                <AdminResourceManagementSection token={token} />
-              ) : null}
-              {shouldShowAdminUsers ? (
-                <AdminUsersSection token={token} />
-              ) : null}
-              {shouldShowAdminBookings ? (
-                <AdminPendingBookingsPanel
-                  apiBaseUrl={API_BASE_URL}
-                  token={token}
-                />
-              ) : null}
-              {shouldShowAdminTimetable ? (
-                <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} />
-              ) : null}
-              {shouldShowMyBookings ? (
-                <MyBookingsSection
-                  token={token}
-                  user={user}
-                />
-              ) : null}
-              {shouldShowBookResource ? (
-                <BookResourceSection token={token} user={user} />
-              ) : null}
-              {shouldShowMyTickets ? <MyTicketsSection /> : null}
-              {shouldShowSettingsProfile ? (
-                <SettingsProfileSection user={user} />
-              ) : null}
+              {shouldShowAdminResourceManagement ? <AdminResourceManagementSection token={token} /> : null}
+              {shouldShowAdminUsers ? <AdminUsersSection token={token} /> : null}
+              {shouldShowAdminBookings ? <AdminPendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowAdminTimetable ? <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowMyBookings ? <MyBookingsSection token={token} user={user} /> : null}
+              {shouldShowBookResource ? <BookResourceSection token={token} user={user} /> : null}
+              {shouldShowMyTickets ? <MyTicketsSection apiBaseUrl={API_BASE_URL} token={token} user={user} /> : null}
+              {shouldShowRaiseTicket ? <RaiseTicketPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId || user?.id} /> : null}
+              {shouldShowSettingsProfile ? <SettingsProfileSection user={user} /> : null}
             </section>
           </div>
         </div>
