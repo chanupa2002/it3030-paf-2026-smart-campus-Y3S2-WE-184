@@ -336,32 +336,49 @@ export default function TicketManagementPanel({ statusFilter, apiBaseUrl, token,
 
                     <div className="ticket-bar-workflow-actions">
                       {/* Admin Specific Actions: Assign & Reject */}
-                      {user?.roleName?.toLowerCase() === "admin" && ticket.status === STATUSES.OPEN && (
-                        <>
+                      {user?.roleName?.toLowerCase() === "admin" && (
+                        ticket.status === STATUSES.OPEN ? (
+                          <>
+                            <button
+                              className={`book-by-name-clear ticket-action-btn-assign`}
+                              onClick={() => setAssignState({ ticketId: ticket.ticketId })}
+                              type="button"
+                              disabled={!!ticket.assignedUser}
+                              style={{ opacity: ticket.assignedUser ? 0.6 : 1, cursor: ticket.assignedUser ? 'not-allowed' : 'pointer' }}
+                            >
+                              {ticket.assignedUser ? "Technician Assigned" : "Assign Technician"}
+                            </button>
+                            <button
+                              className="book-by-name-clear ticket-action-btn-rejected"
+                              onClick={() =>
+                                setConfirmState({
+                                  ticketId: ticket.ticketId,
+                                  nextStatus: STATUSES.REJECTED,
+                                  title: "Confirm Rejection?",
+                                  message: `Are you sure you want to reject ticket #${ticket.ticketId}?`,
+                                })
+                              }
+                              type="button"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        ) : ticket.status === STATUSES.REJECTED ? (
                           <button
-                            className={`book-by-name-clear ticket-action-btn-assign`}
-                            onClick={() => setAssignState({ ticketId: ticket.ticketId })}
-                            type="button"
-                            disabled={!!ticket.assignedUser}
-                            style={{ opacity: ticket.assignedUser ? 0.6 : 1, cursor: ticket.assignedUser ? 'not-allowed' : 'pointer' }}
-                          >
-                            {ticket.assignedUser ? "Technician Assigned" : "Assign Technician"}
-                          </button>
-                          <button
-                            className="book-by-name-clear ticket-action-btn-rejected"
+                            className="book-by-name-clear ticket-action-btn-reopen"
                             onClick={() =>
                               setConfirmState({
                                 ticketId: ticket.ticketId,
-                                nextStatus: STATUSES.REJECTED,
-                                title: "Confirm Rejection?",
-                                message: `Are you sure you want to reject ticket #${ticket.ticketId}?`,
+                                nextStatus: STATUSES.OPEN,
+                                title: "Confirm Re-open?",
+                                message: `Are you sure you want to re-open ticket #${ticket.ticketId}?`,
                               })
                             }
                             type="button"
                           >
-                            Reject
+                            Re-open
                           </button>
-                        </>
+                        ) : null
                       )}
 
                       {/* Workflow Actions: Technicians see only assigned-status transitions; admins see workflow transitions (including reopen) */}
