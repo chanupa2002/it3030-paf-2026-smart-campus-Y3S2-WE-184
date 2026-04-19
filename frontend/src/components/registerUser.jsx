@@ -7,6 +7,29 @@ const USER_TYPE_OPTIONS = [
   "Technician",
 ];
 
+const USER_TYPE_META = {
+  Student: {
+    badge: "ST",
+    title: "Student profile",
+    description: "Access study resources, personal bookings, and day-to-day campus services.",
+  },
+  Lecturer: {
+    badge: "LE",
+    title: "Lecturer profile",
+    description: "Set up academic access for teaching, schedules, and classroom coordination.",
+  },
+  Instructor: {
+    badge: "IN",
+    title: "Instructor profile",
+    description: "Prepare a teaching account for labs, support sessions, and practical activities.",
+  },
+  Technician: {
+    badge: "TE",
+    title: "Technician profile",
+    description: "Enable technical operations access for resources, support, and facility handling.",
+  },
+};
+
 function getMessage(payload) {
   const message = payload?.message;
   if (Array.isArray(message)) return message.join(", ");
@@ -45,6 +68,8 @@ export default function RegisterUser({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const selectedUserTypeMeta =
+    USER_TYPE_META[form.userType] ?? USER_TYPE_META[USER_TYPE_OPTIONS[0]];
 
   const setField = (key, value) =>
     setForm((current) => ({
@@ -180,18 +205,38 @@ export default function RegisterUser({
                 />
               </label>
 
-              <label className="field">
+              <label
+                className="field field-user-type"
+                data-user-type={form.userType.toLowerCase()}
+              >
                 <span>User Type</span>
-                <select
-                  onChange={(event) => setField("userType", event.target.value)}
-                  value={form.userType}
-                >
-                  {USER_TYPE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                <div className="user-type-card">
+                  <div className="user-type-badge" aria-hidden="true">
+                    {selectedUserTypeMeta.badge}
+                  </div>
+
+                  <div className="user-type-copy">
+                    <strong>{selectedUserTypeMeta.title}</strong>
+                    <small>{selectedUserTypeMeta.description}</small>
+                  </div>
+
+                  <div className="user-type-select-wrap">
+                    <select
+                      className="user-type-select"
+                      onChange={(event) => setField("userType", event.target.value)}
+                      value={form.userType}
+                    >
+                      {USER_TYPE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="user-type-select-arrow" aria-hidden="true">
+                      ▼
+                    </span>
+                  </div>
+                </div>
               </label>
 
               <label className="field">
