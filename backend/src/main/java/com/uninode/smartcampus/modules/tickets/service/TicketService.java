@@ -40,12 +40,14 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@lombok.extern.slf4j.Slf4j
 public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
     private final ObjectMapper objectMapper;
+    private final SupabaseStorageService supabaseStorageService;
 
     private static final Map<TicketStatus, Set<TicketStatus>> VALID_TRANSITIONS = new HashMap<>();
 
@@ -97,7 +99,7 @@ public class TicketService {
         return mapToResponse(ticket);
     }
 
-    public Page<TicketResponse> getAllTickets(TicketFilterRequest filter, Long userId, boolean isAdmin) {
+    public Page<TicketResponse> getAllTickets(TicketFilterRequest filter, Long userId, boolean isAdmin, boolean isTechnician) {
         int pageNumber = filter.getPageNumber() != null ? filter.getPageNumber() : 0;
         int pageSize = filter.getPageSize() != null ? filter.getPageSize() : 10;
         String sortBy = filter.getSortBy() != null ? filter.getSortBy() : "createdAt";
@@ -108,14 +110,7 @@ public class TicketService {
 
         Page<Ticket> tickets;
 
-        if (!isAdmin) {
-            // Non-admin users can see only their own tickets or tickets assigned to them
-            if (filter.getStatus() != null) {
-                tickets = ticketRepository.findByRaisedUserIdAndStatus(userId, filter.getStatus(), pageable);
-            } else {
-                tickets = ticketRepository.findByRaisedUserId(userId, pageable);
-            }
-        } else {
+        if (isAdmin) {
             // Admin users can see all tickets with filters
             if (filter.getStatus() != null && filter.getPriority() != null) {
                 tickets = ticketRepository.findByStatusAndPriority(filter.getStatus(), filter.getPriority(), pageable);
@@ -127,6 +122,20 @@ public class TicketService {
                 tickets = ticketRepository.findByResourceId(filter.getResourceId(), pageable);
             } else {
                 tickets = ticketRepository.findAll(pageable);
+            }
+        } else if (isTechnician) {
+            // Technicians see ONLY tickets assigned to them
+            if (filter.getStatus() != null) {
+                tickets = ticketRepository.findByAssignedUserIdAndStatus(userId, filter.getStatus(), pageable);
+            } else {
+                tickets = ticketRepository.findByAssignedUserId(userId, pageable);
+            }
+        } else {
+            // Other users (Students) see ONLY tickets they raised
+            if (filter.getStatus() != null) {
+                tickets = ticketRepository.findByRaisedUserIdAndStatus(userId, filter.getStatus(), pageable);
+            } else {
+                tickets = ticketRepository.findByRaisedUserId(userId, pageable);
             }
         }
 
@@ -180,6 +189,7 @@ public class TicketService {
         }
 
         ticket.setResolutionNotes(request.getResolutionNotes());
+        ticket.setStatus(TicketStatus.RESOLVED);
         Ticket updatedTicket = ticketRepository.save(ticket);
         return mapToResponse(updatedTicket);
     }
@@ -201,6 +211,11 @@ public class TicketService {
         
         // Parse JSONB images to List<AttachmentResponse>
         List<AttachmentResponse> attachments = parseImagesToAttachments(ticket.getImages());
+        
+        log.info("Ticket {} mapped with {} attachments", ticket.getTicketId(), attachments.size());
+        if (!attachments.isEmpty()) {
+            attachments.forEach(att -> log.info("  Attachment: {} -> {}", att.getFileName(), att.getFilePath()));
+        }
 
         return TicketResponse.builder()
                 .ticketId(ticket.getTicketId())
@@ -234,22 +249,73 @@ public class TicketService {
     
     private List<AttachmentResponse> parseImagesToAttachments(String imagesJson) {
         if (imagesJson == null || imagesJson.isEmpty() || "null".equals(imagesJson)) {
+            log.debug("No images found in ticket");
             return new ArrayList<>();
         }
         try {
             java.util.List<String> imagePaths = objectMapper.readValue(imagesJson, new TypeReference<java.util.List<String>>() {});
+            log.info("Found {} image signed URLs in database", imagePaths.size());
             java.util.List<AttachmentResponse> attachments = new ArrayList<>();
             for (int i = 0; i < imagePaths.size(); i++) {
-                String path = imagePaths.get(i);
-                attachments.add(AttachmentResponse.builder()
-                        .filePath(path)
-                        .fileName(path.substring(path.lastIndexOf("/") + 1))
-                        .index(i)
-                        .build());
+                String signedUrl = imagePaths.get(i);
+                if (signedUrl != null && !signedUrl.isEmpty()) {
+                    // Extract filename from signed URL for display
+                    String fileName = "attachment";
+                    try {
+                        int lastSlash = signedUrl.lastIndexOf("/");
+                        int queryPos = signedUrl.indexOf("?", lastSlash);
+                        if (queryPos > lastSlash) {
+                            fileName = signedUrl.substring(lastSlash + 1, queryPos);
+                        } else if (lastSlash >= 0) {
+                            fileName = signedUrl.substring(lastSlash + 1);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to extract filename from URL");
+                    }
+                    
+                    attachments.add(AttachmentResponse.builder()
+                            .filePath(signedUrl)  // Use signed URL directly
+                            .fileName(fileName)
+                            .index(i)
+                            .build());
+                    log.debug("Added attachment {}: {}", i, fileName);
+                }
             }
+            log.info("Successfully parsed {} attachments from database", attachments.size());
             return attachments;
         } catch (Exception e) {
+            log.error("Error parsing images JSON: {} - {}", imagesJson, e.getMessage(), e);
             return new ArrayList<>();
         }
+    }
+    
+    private String extractFilePathFromSignedUrl(String signedUrl) {
+        if (signedUrl == null || signedUrl.isEmpty()) {
+            return null;
+        }
+        // Extract file path from signed URL
+        // Formats:
+        // 1. Relative: /object/sign/bucket-name/tickets/uuid.ext?token=...
+        // 2. Absolute: https://...supabase.co/storage/v1/object/sign/bucket-name/tickets/uuid.ext?token=...
+        try {
+            // Find "tickets/" in the URL
+            int ticketsIndex = signedUrl.indexOf("tickets/");
+            if (ticketsIndex != -1) {
+                // Extract from "tickets/" to the query string or end
+                int queryIndex = signedUrl.indexOf("?", ticketsIndex);
+                String extracted;
+                if (queryIndex != -1) {
+                    extracted = signedUrl.substring(ticketsIndex, queryIndex);
+                } else {
+                    extracted = signedUrl.substring(ticketsIndex);
+                }
+                log.info("Extracted file path '{}' from URL: {}", extracted, signedUrl.substring(0, Math.min(100, signedUrl.length())));
+                return extracted;
+            }
+            log.warn("Could not find 'tickets/' in URL: {}", signedUrl.substring(0, Math.min(100, signedUrl.length())));
+        } catch (Exception e) {
+            log.error("Failed to extract file path from URL: {}", signedUrl, e);
+        }
+        return null;
     }
 }

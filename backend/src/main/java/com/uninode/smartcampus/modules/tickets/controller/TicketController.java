@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.uninode.smartcampus.modules.tickets.dto.AssignTechnicianRequest;
 import com.uninode.smartcampus.modules.tickets.dto.AddResolutionNotesRequest;
 import com.uninode.smartcampus.modules.tickets.dto.CreateTicketRequest;
@@ -24,6 +25,7 @@ import com.uninode.smartcampus.modules.tickets.exception.InvalidFileTypeExceptio
 import com.uninode.smartcampus.modules.users.entity.User;
 import com.uninode.smartcampus.modules.users.repository.UserRepository;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/tickets")
 @RequiredArgsConstructor
@@ -38,7 +40,7 @@ public class TicketController {
      * Create a new ticket (any authenticated user)
      */
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and !hasRole('TECHNICIAN')")
     public ResponseEntity<TicketResponse> createTicket(
             @Valid @RequestBody CreateTicketRequest request,
             Authentication authentication) {
@@ -48,7 +50,7 @@ public class TicketController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and !hasRole('TECHNICIAN')")
     public ResponseEntity<TicketResponse> createTicketMultipart(
             @RequestPart("ticket") String ticketJson,
             @RequestPart(value = "file", required = false) MultipartFile[] files,
@@ -56,7 +58,7 @@ public class TicketController {
         Long userId = resolveUserId(authentication);
         CreateTicketRequest request = objectMapper.readValue(ticketJson, CreateTicketRequest.class);
         TicketResponse response = ticketService.createTicket(request, userId);
-        
+
         if (files != null && files.length > 0) {
             ticketAttachmentService.uploadAttachments(response.getTicketId(), files, userId);
             // Fetch updated ticket with images
@@ -69,7 +71,7 @@ public class TicketController {
             }
             response = ticketService.getTicket(response.getTicketId(), userId, isAdmin);
         }
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -85,6 +87,10 @@ public class TicketController {
         boolean isAdmin = user.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         TicketResponse response = ticketService.getTicket(id, user.getUserId(), isAdmin);
+        log.info("Retrieved ticket {}: {} attachments found", id, response.getAttachments() != null ? response.getAttachments().size() : 0);
+        if (response.getAttachments() != null && !response.getAttachments().isEmpty()) {
+            response.getAttachments().forEach(att -> log.info("  - Attachment: {} - Path: {}", att.getFileName(), att.getFilePath()));
+        }
         return ResponseEntity.ok(response);
     }
 
@@ -117,8 +123,10 @@ public class TicketController {
             @RequestParam(required = false) String sortOrder,
             Authentication authentication) {
         User user = (User) authentication.getPrincipal();
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_ADMIN") || a.getAuthority().equalsIgnoreCase("ADMIN"));
+        boolean isTechnician = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_TECHNICIAN") || a.getAuthority().equalsIgnoreCase("TECHNICIAN"));
 
         TicketFilterRequest filter = new TicketFilterRequest();
         if (status != null) {
@@ -132,7 +140,7 @@ public class TicketController {
         filter.setSortBy(sortBy);
         filter.setSortOrder(sortOrder);
 
-        Page<TicketResponse> response = ticketService.getAllTickets(filter, user.getUserId(), isAdmin);
+        Page<TicketResponse> response = ticketService.getAllTickets(filter, user.getUserId(), isAdmin, isTechnician);
         return ResponseEntity.ok(response);
     }
 
@@ -197,5 +205,5 @@ public class TicketController {
      * DEBUG ENDPOINT: Get current user info and authorities
      * This helps diagnose authorization issues
      */
-    
+
 }

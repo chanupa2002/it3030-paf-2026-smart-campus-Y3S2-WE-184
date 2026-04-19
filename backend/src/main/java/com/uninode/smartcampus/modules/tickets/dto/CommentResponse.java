@@ -31,5 +31,6 @@ public class CommentResponse {
         private Long userId;
         private String name;
         private String email;
+        private String roleName;
     }
 }

@@ -6,6 +6,10 @@ import BookByNamePanel from "./components/booking/BookByNamePanel";
 import BookByTypePanel from "./components/booking/BookByTypePanel";
 import CancelledBookingsPanelView from "./components/booking/CancelledBookingsPanel";
 import PendingBookingsPanel from "./components/booking/PendingBookingsPanel";
+import RaiseTicketPanel from "./components/tickets/RaiseTicketPanel";
+import TicketManagementPanel from "./components/tickets/TicketManagementPanel";
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 import RejectedBookingsPanelView from "./components/booking/RejectedBookingsPanel";
 import RegisterUser from "./components/registerUser";
 
@@ -148,7 +152,7 @@ const ACADEMIC_SECTIONS = [
   {
     id: "comp-5",
     label: "Raise Ticket",
-    view: "empty",
+    view: "raise-ticket",
     iconSrc: "/assets/icons/raise_ticket.png",
     placement: "quick",
     title: "Raise Ticket",
@@ -243,16 +247,16 @@ const ADMIN_SECTIONS = [
   },
   {
     id: "admin-comp-3",
-    label: "Tickets",
-    view: "empty",
+    label: "Ticket Management",
+    view: "my-tickets",
     iconSrc: "/assets/icons/my_tickets.png",
     placement: "quick",
     title: "Tickets",
-    description: "Admin tickets page placeholder.",
+    description: "Manage and resolve campus support tickets.",
     searchPlaceholder: "",
     buttonLabel: "",
     items: [],
-  },
+  },,
   {
     id: "admin-users",
     label: "Users",
@@ -322,7 +326,7 @@ const TECHNICIAN_SECTIONS = [
     iconSrc: "/assets/icons/my_tickets.png",
     placement: "quick",
     title: "Tickets",
-    description: "Technician tickets page placeholder.",
+    description: "Work on assigned tasks and update ticket status.",
     searchPlaceholder: "",
     buttonLabel: "",
     items: [],
@@ -1738,6 +1742,8 @@ function DashboardPage({
   const shouldShowMyBookings = activeView === "my-bookings";
   const shouldShowBookResource = activeView === "book-resource";
   const shouldShowMyTickets = activeView === "my-tickets";
+  const shouldShowRaiseTicket = activeView === "raise-ticket";
+  const shouldShowAdminResourceManagement = activeView === "admin-resource-management";
   const shouldShowAdminResourceManagement =
     activeView === "admin-resource-management";
   const shouldShowAdminUsers = activeView === "admin-users";
@@ -1966,6 +1972,32 @@ function DashboardPage({
                   ? "dashboard-content-panel-resources"
                   : shouldShowAdminResourceManagement
                     ? "dashboard-content-panel-resources"
+                  : shouldShowAdminBookings
+                    ? "dashboard-content-panel-book-resource"
+                  : shouldShowAdminTimetable
+                    ? "dashboard-content-panel-resources"
+                  : shouldShowSettingsProfile
+                    ? "dashboard-content-panel-settings"
+                  : shouldShowMyBookings
+                    ? "dashboard-content-panel-book-resource"
+                  : shouldShowBookResource
+                    ? "dashboard-content-panel-book-resource"
+                    : shouldShowMyTickets
+                      ? "dashboard-content-panel-book-resource"
+                      : shouldShowRaiseTicket
+                        ? "dashboard-content-panel-book-resource"
+                        : "dashboard-content-empty"
+              }`}
+            >
+              {shouldShowResources ? <ResourcesSection token={token} /> : null}
+              {shouldShowAdminResourceManagement ? <AdminResourceManagementSection token={token} /> : null}
+              {shouldShowAdminBookings ? <AdminPendingBookingsPanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowAdminTimetable ? <AdminTimetablePanel apiBaseUrl={API_BASE_URL} token={token} /> : null}
+              {shouldShowMyBookings ? <MyBookingsSection token={token} user={user} /> : null}
+              {shouldShowBookResource ? <BookResourceSection token={token} user={user} /> : null}
+              {shouldShowMyTickets ? <MyTicketsSection apiBaseUrl={API_BASE_URL} token={token} user={user} /> : null}
+              {shouldShowRaiseTicket ? <RaiseTicketPanel apiBaseUrl={API_BASE_URL} token={token} userId={user?.userId || user?.id} /> : null}
+              {shouldShowSettingsProfile ? <SettingsProfileSection user={user} /> : null}
                     : shouldShowAdminUsers
                       ? "dashboard-content-panel-resources"
                       : shouldShowAdminBookings
@@ -3783,7 +3815,7 @@ function SettingsProfileSection({ user }) {
           </div>
           <div className="settings-profile-item">
             <span>User ID</span>
-            <strong>{user?.id ?? "N/A"}</strong>
+            <strong>{user?.userId ?? user?.id ?? "N/A"}</strong>
           </div>
         </div>
       </div>
@@ -3848,20 +3880,17 @@ function BookResourceSection({ token, user }) {
   );
 }
 
-function MyTicketsSection() {
+function MyTicketsSection({ apiBaseUrl, token, user }) {
+  const isAdmin = user?.roleName?.toLowerCase() === "admin";
   const [activeTab, setActiveTab] = useState("open");
+  
   const tabs = [
-    { key: "open", label: "Open", panel: <OpenTicketsPanel /> },
-    {
-      key: "in-progress",
-      label: "In Progress",
-      panel: <InProgressTicketsPanel />,
-    },
-    { key: "resolved", label: "Resolved", panel: <ResolvedTicketsPanel /> },
-    { key: "rejected", label: "Rejected", panel: <RejectedTicketsPanel /> },
+    { key: "open", label: "Open" },
+    { key: "in-progress", label: "In Progress" },
+    { key: "resolved", label: "Resolved" },
+    { key: "rejected", label: "Rejected" },
+    { key: "closed", label: "Closed" },
   ];
-  const activePanel =
-    tabs.find((tab) => tab.key === activeTab)?.panel || tabs[0].panel;
 
   return (
     <div className="book-resource-shell">
@@ -3884,12 +3913,13 @@ function MyTicketsSection() {
         ))}
       </div>
 
-      <div
-        className="book-resource-tab-panel"
-        role="tabpanel"
-        aria-live="polite"
-      >
-        {activePanel}
+      <div className="book-resource-tab-panel" role="tabpanel" aria-live="polite">
+        <TicketManagementPanel 
+          statusFilter={activeTab} 
+          apiBaseUrl={apiBaseUrl}
+          token={token}
+          user={user}
+        />
       </div>
     </div>
   );
@@ -3913,53 +3943,6 @@ function CancelledBookingsPanel() {
       <h3>Cancelled Bookings</h3>
       <p>
         Cancelled bookings display here. We can add the real cancelled booking
-        content next.
-      </p>
-    </div>
-  );
-}
-
-function OpenTicketsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Open Tickets</h3>
-      <p>
-        Open tickets display here. We can add the real open ticket content next.
-      </p>
-    </div>
-  );
-}
-
-function InProgressTicketsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>In Progress Tickets</h3>
-      <p>
-        In progress tickets display here. We can add the real in progress ticket
-        content next.
-      </p>
-    </div>
-  );
-}
-
-function ResolvedTicketsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Resolved Tickets</h3>
-      <p>
-        Resolved tickets display here. We can add the real resolved ticket
-        content next.
-      </p>
-    </div>
-  );
-}
-
-function RejectedTicketsPanel() {
-  return (
-    <div className="book-resource-panel-card">
-      <h3>Rejected Tickets</h3>
-      <p>
-        Rejected tickets display here. We can add the real rejected ticket
         content next.
       </p>
     </div>

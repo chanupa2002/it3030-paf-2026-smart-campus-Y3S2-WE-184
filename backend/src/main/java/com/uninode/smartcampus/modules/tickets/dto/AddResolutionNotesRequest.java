@@ -16,6 +16,6 @@ import lombok.Setter;
 public class AddResolutionNotesRequest {
 
     @NotBlank(message = "Resolution notes cannot be empty")
-    @Size(min = 10, max = 3000, message = "Resolution notes must be between 10 and 3000 characters")
+    @Size(min = 3, max = 3000, message = "Resolution notes must be between 3 and 3000 characters")
     private String resolutionNotes;
 }

@@ -107,6 +107,7 @@ public class TicketCommentService {
                         .userId(comment.getUser().getUserId())
                         .name(comment.getUser().getName())
                         .email(comment.getUser().getEmail())
+                        .roleName(comment.getUser().getUserType() != null ? comment.getUser().getUserType().getRoleName() : "User")
                         .build())
                 .comment(comment.getComment())
                 .isEdited(isEdited)
