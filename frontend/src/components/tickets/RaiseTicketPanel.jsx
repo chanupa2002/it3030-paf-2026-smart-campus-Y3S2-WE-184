@@ -213,7 +213,7 @@ export default function RaiseTicketPanel({ apiBaseUrl, token, userId }) {
                 onChange={(e) => setSelectedResourceId(e.target.value)}
                 disabled={loading || fetchingResources}
                 required
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--text)' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--input)', color: 'var(--text)' }}
               >
                 <option value="">{fetchingResources ? "Fetching resources..." : resources.length === 0 ? "No resources found" : "Select Resource..."}</option>
                 {resources.map((res) => (
@@ -231,7 +231,7 @@ export default function RaiseTicketPanel({ apiBaseUrl, token, userId }) {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 disabled={loading}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--text)' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--input)', color: 'var(--text)' }}
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -248,7 +248,7 @@ export default function RaiseTicketPanel({ apiBaseUrl, token, userId }) {
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 disabled={loading}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--text)' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--input)', color: 'var(--text)' }}
               >
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>{priorityLabels[p]}</option>
@@ -267,7 +267,7 @@ export default function RaiseTicketPanel({ apiBaseUrl, token, userId }) {
                 inputMode="numeric"
                 pattern="[0-9]{10}"
                 maxLength={10}
-                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--card-bg)', color: 'var(--text)' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'var(--input)', color: 'var(--text)' }}
               />
             </label>
           </div>
