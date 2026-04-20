@@ -9,8 +9,8 @@ spring:
     password: ${DB_PASSWORD:CHANGE_ME}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: ${DB_POOL_MAX:10}
-      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      maximum-pool-size: ${DB_POOL_MAX:3}
+      minimum-idle: ${DB_POOL_MIN_IDLE:0}
   jpa:
     hibernate:
       ddl-auto: none
