@@ -260,7 +260,7 @@ export default function RaiseTicketPanel({ apiBaseUrl, token, userId }) {
               <span>Contact Number</span>
               <input
                 type="tel"
-                placeholder="Enter 10-digit contact number"
+                placeholder="Enter your Contact Number"
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 disabled={loading}
