@@ -36,19 +36,29 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authHeader.substring(7);
-        String email = jwtUtils.extractUsername(token);
+        // If a bearer token is provided, treat it as authoritative for this request.
+        // This prevents stale HttpSession auth (e.g., old JSESSIONID) from overriding
+        // a newly logged-in user's JWT.
+        SecurityContextHolder.clearContext();
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        try {
+            String token = authHeader.substring(7);
+            String email = jwtUtils.extractUsername(token);
 
-            if (jwtUtils.validateToken(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+            if (email != null) {
+                UserDetails userDetails = userRepository.findByEmail(email)
+                        .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+
+                if (jwtUtils.validateToken(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                }
             }
+        } catch (Exception ignored) {
+            // Leave context unauthenticated and let downstream security return 401/403 as needed.
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);
