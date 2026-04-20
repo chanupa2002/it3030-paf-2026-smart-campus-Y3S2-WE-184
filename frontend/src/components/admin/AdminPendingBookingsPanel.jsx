@@ -7,6 +7,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
   const [statusFilter, setStatusFilter] = useState("pending");
   const [pendingBookings, setPendingBookings] = useState([]);
   const [approvedBookings, setApprovedBookings] = useState([]);
+  const [rejectedBookings, setRejectedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -26,7 +27,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
 
       try {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [pendingResponse, approvedResponse] = await Promise.all([
+        const [pendingResponse, approvedResponse, rejectedResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/api/bookings/ViewPendingBookings`, {
             headers,
             signal: controller.signal,
@@ -35,10 +36,15 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
             headers,
             signal: controller.signal,
           }),
+          fetch(`${apiBaseUrl}/api/bookings/ViewRejectedBookings`, {
+            headers,
+            signal: controller.signal,
+          }),
         ]);
 
         const pendingPayload = await pendingResponse.json().catch(() => []);
         const approvedPayload = await approvedResponse.json().catch(() => []);
+        const rejectedPayload = await rejectedResponse.json().catch(() => []);
 
         if (!pendingResponse.ok) {
           throw new Error(resolveMessage(pendingPayload));
@@ -48,12 +54,18 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
           throw new Error(resolveMessage(approvedPayload));
         }
 
+        if (!rejectedResponse.ok) {
+          throw new Error(resolveMessage(rejectedPayload));
+        }
+
         setPendingBookings(Array.isArray(pendingPayload) ? pendingPayload : []);
         setApprovedBookings(Array.isArray(approvedPayload) ? approvedPayload : []);
+        setRejectedBookings(Array.isArray(rejectedPayload) ? rejectedPayload : []);
       } catch (requestError) {
         if (requestError.name === "AbortError") return;
         setPendingBookings([]);
         setApprovedBookings([]);
+        setRejectedBookings([]);
         setError(requestError.message || "Unable to load bookings right now.");
       } finally {
         if (!controller.signal.aborted) {
@@ -86,10 +98,25 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
     [approvedBookings]
   );
 
+  const sortedRejectedBookings = useMemo(
+    () =>
+      [...rejectedBookings].sort((left, right) => {
+        const leftCreated = new Date(left.created_at || 0).getTime();
+        const rightCreated = new Date(right.created_at || 0).getTime();
+        return rightCreated - leftCreated;
+      }),
+    [rejectedBookings]
+  );
+
   const visibleBookings = useMemo(() => {
-    const source = statusFilter === "approved" ? sortedApprovedBookings : sortedPendingBookings;
+    const source =
+      statusFilter === "approved"
+        ? sortedApprovedBookings
+        : statusFilter === "rejected"
+          ? sortedRejectedBookings
+          : sortedPendingBookings;
     return source.filter((booking) => !filterDate || booking.date === filterDate);
-  }, [filterDate, sortedApprovedBookings, sortedPendingBookings, statusFilter]);
+  }, [filterDate, sortedApprovedBookings, sortedPendingBookings, sortedRejectedBookings, statusFilter]);
 
   const closeApproveModal = () => {
     if (isSubmitting) return;
@@ -112,7 +139,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/bookings/approveBooking`, {
-        method: "POST",
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -192,7 +219,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
       <div className="book-by-name-header">
         <div>
           <h3>Bookings</h3>
-          <p>Review pending and approved booking groups. Pending requests are ordered oldest first.</p>
+          <p>Review pending, approved, and rejected booking groups. Pending requests are ordered oldest first.</p>
         </div>
       </div>
 
@@ -203,6 +230,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
             <select onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
             </select>
           </label>
           <label className="availability-field">
@@ -224,7 +252,9 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
 
             return (
               <article className="availability-slot-card" key={booking.booking_group_id ?? booking.booking_ids?.join("-")}>
-                <span className="availability-slot-card-label">{statusFilter === "pending" ? "Pending" : "Approved"}</span>
+                <span className="availability-slot-card-label">
+                  {statusFilter === "pending" ? "Pending" : statusFilter === "approved" ? "Approved" : "Rejected"}
+                </span>
                 <strong>Booking Group #{booking.booking_group_id ?? "N/A"}</strong>
                 <p>Purpose: {booking.purpose || "Not provided"}</p>
                 <p>Date: {formatBookingDate(booking.date)}</p>
@@ -233,6 +263,7 @@ export default function AdminPendingBookingsPanel({ apiBaseUrl, token }) {
                 <p>Resource: {booking.resource_name || `Resource #${booking.resource_id ?? "N/A"}`}</p>
                 <p>User ID: {booking.user_id ?? "N/A"}</p>
                 <p>Slots: {formatIds(booking.slots)}</p>
+                {statusFilter === "rejected" ? <p>Reason: {booking.reason || "No rejection reason provided."}</p> : null}
                 {statusFilter === "pending" ? (
                   actionLocked ? (
                     <p>Approval window expired. Booking actions were only allowed within 72 hours of creation.</p>

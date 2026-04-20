@@ -71,6 +71,7 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
   };
 
   const cancelBookingGroup = async (bookingGroupId) => {
+    console.log("Cancel clicked:", bookingGroupId);
     setNotice("");
     setError("");
     setActionError("");

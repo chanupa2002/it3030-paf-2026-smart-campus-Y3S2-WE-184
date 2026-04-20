@@ -17,6 +17,7 @@ export default function AdminTimetablePanel({ apiBaseUrl, token }) {
   const [resourceTypeFilter, setResourceTypeFilter] = useState("all");
   const [selectedResourceId, setSelectedResourceId] = useState(null);
   const [confirmResource, setConfirmResource] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadTimetable = async (controller, preferredKey = null) => {
@@ -124,6 +125,12 @@ export default function AdminTimetablePanel({ apiBaseUrl, token }) {
     setConfirmResource(null);
   };
 
+  const closeRemoveDialog = () => {
+    if (isSubmitting) return;
+    setRemoveTarget(null);
+    setPickerError("");
+  };
+
   const submitAddResource = async () => {
     if (!selectedCell?.slot_id || !confirmResource?.id) return;
 
@@ -158,6 +165,41 @@ export default function AdminTimetablePanel({ apiBaseUrl, token }) {
       await loadTimetable(null, preferredKey);
     } catch (requestError) {
       setPickerError(requestError.message || "Unable to add this resource to the selected slot right now.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitRemoveResource = async () => {
+    if (!selectedCell?.slot_id || !removeTarget?.id) return;
+
+    setIsSubmitting(true);
+    setPickerError("");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/facilities/removeResourceFromSlot`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          slot_id: selectedCell.slot_id,
+          resource_id: removeTarget.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(resolveMessage(payload));
+      }
+
+      const preferredKey = createKey(selectedCell.day, selectedCell.slot);
+      setNotice(`${removeTarget.name} was removed from ${selectedCell.day} ${formatSlotLabel(selectedCell.slot)}.`);
+      setRemoveTarget(null);
+      await loadTimetable(null, preferredKey);
+    } catch (requestError) {
+      setPickerError(requestError.message || "Unable to remove this resource from the selected slot right now.");
     } finally {
       setIsSubmitting(false);
     }
@@ -226,6 +268,18 @@ export default function AdminTimetablePanel({ apiBaseUrl, token }) {
                       <span className="availability-slot-card-label">Assigned Resource</span>
                       <strong>{resourceName}</strong>
                       <p>Slot: {formatSlotLabel(selectedCell.slot)}</p>
+                      <button
+                        className="book-by-name-clear"
+                        onClick={() =>
+                          setRemoveTarget({
+                            id: selectedCell.resource_ids?.[index],
+                            name: resourceName || `Resource #${selectedCell.resource_ids?.[index] ?? "N/A"}`,
+                          })
+                        }
+                        type="button"
+                      >
+                        Remove
+                      </button>
                     </article>
                   ))
                 ) : (
@@ -360,6 +414,34 @@ export default function AdminTimetablePanel({ apiBaseUrl, token }) {
               </button>
               <button className="modal-primary-button" disabled={isSubmitting} onClick={submitAddResource} type="button">
                 {isSubmitting ? "Adding..." : "OK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {removeTarget ? (
+        <div className="modal-backdrop">
+          <div aria-labelledby="admin-timetable-remove-title" aria-modal="true" className="modal-card modal-card-confirm" role="dialog">
+            <div className="modal-header">
+              <h3 id="admin-timetable-remove-title">Remove Resource From Slot</h3>
+              <p>Do you want to remove this resource from the selected timetable slot?</p>
+            </div>
+
+            <div className="booking-admin-summary">
+              <p>Resource: {removeTarget.name || `Resource #${removeTarget.id}`}</p>
+              <p>Slot: {selectedCell ? formatSlotLabel(selectedCell.slot) : "N/A"}</p>
+              <p>Day: {selectedCell?.day || "N/A"}</p>
+            </div>
+
+            {pickerError ? <div className="modal-inline-error">{pickerError}</div> : null}
+
+            <div className="modal-actions">
+              <button className="modal-secondary-button" disabled={isSubmitting} onClick={closeRemoveDialog} type="button">
+                Cancel
+              </button>
+              <button className="modal-primary-button" disabled={isSubmitting} onClick={submitRemoveResource} type="button">
+                {isSubmitting ? "Removing..." : "Remove"}
               </button>
             </div>
           </div>

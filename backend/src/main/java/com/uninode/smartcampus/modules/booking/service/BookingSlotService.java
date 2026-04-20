@@ -647,8 +647,9 @@ public class BookingSlotService {
         public ApproveBookingResponse approveBooking(ApproveBookingRequest request) {
                 BookingApprovalRow booking = jdbcTemplate.query(
                                 """
-                                                SELECT rb.booking_group_id, rb.created_at
+                                                SELECT rb.booking_group_id, rb.created_at, rb.date, r.name AS resource_name
                                                 FROM "Resource_booking" rb
+                                                LEFT JOIN "Resource" r ON r.id = rb.resource_id
                                                 WHERE rb.booking_group_id = ?
                                                   AND rb.user_id = ?
                                                 LIMIT 1
@@ -656,7 +657,9 @@ public class BookingSlotService {
                                 rs -> rs.next()
                                                 ? new BookingApprovalRow(
                                                                 rs.getLong("booking_group_id"),
-                                                                rs.getObject("created_at", OffsetDateTime.class))
+                                                                rs.getObject("created_at", OffsetDateTime.class),
+                                                                rs.getObject("date", LocalDate.class),
+                                                                rs.getString("resource_name"))
                                                 : null,
                                 request.bookingGroupId(),
                                 request.userId());
@@ -692,13 +695,39 @@ public class BookingSlotService {
                                                         + "' and user_id '" + request.userId() + "'.");
                 }
 
+                List<Long> slots = jdbcTemplate.query(
+                                """
+                                                SELECT ds.slot
+                                                FROM "Resource_booking" rb
+                                                INNER JOIN "Ds_slot" ds ON ds.slot_id = rb.timeslot_id
+                                                WHERE rb.booking_group_id = ?
+                                                  AND rb.user_id = ?
+                                                ORDER BY ds.slot ASC
+                                                """,
+                                (rs, rowNum) -> rs.getLong("slot"),
+                                request.bookingGroupId(),
+                                request.userId());
+
+                String resourceLabel = booking.resourceName() == null || booking.resourceName().trim().isEmpty()
+                                ? "Unknown resource"
+                                : booking.resourceName().trim();
+                String dateLabel = booking.date() == null ? "Unknown date" : booking.date().toString();
+                String slotsLabel = slots.isEmpty()
+                                ? "No slots listed"
+                                : slots.stream()
+                                                .map(this::formatSlotRange)
+                                                .collect(java.util.stream.Collectors.joining(", "));
+
                 jdbcTemplate.update(
                                 """
                                                 INSERT INTO "Notifications" (notification_type, notification, user_id)
                                                 VALUES (?, ?, ?)
                                                 """,
                                 "Booking",
-                                "Your booking request was approved.",
+                                "Your booking group " + request.bookingGroupId()
+                                                + " was approved. Resource: " + resourceLabel
+                                                + ". Date: " + dateLabel
+                                                + ". Time slots: " + slotsLabel + ".",
                                 request.userId());
 
                 return new ApproveBookingResponse(
@@ -708,7 +737,9 @@ public class BookingSlotService {
 
         private record BookingApprovalRow(
                         Long bookingGroupId,
-                        OffsetDateTime createdAt) {
+                        OffsetDateTime createdAt,
+                        LocalDate date,
+                        String resourceName) {
         }
 
         private record CancellableBookingRow(
@@ -1043,5 +1074,13 @@ public class BookingSlotService {
                 return grouped.values().stream()
                                 .map(PendingBookingAccumulator::toResponse)
                                 .toList();
+        }
+
+        private String formatSlotRange(Long slot) {
+                if (slot == null) {
+                        return "Unknown slot";
+                }
+
+                return slot + ":00 - " + (slot + 1) + ":00";
         }
 }
