@@ -1535,34 +1535,6 @@ function DashboardPage({
   }, [group]);
 
   useEffect(() => {
-    if (group === "admin") {
-      return undefined;
-    }
-
-    const neutralizeBackdrops = () => {
-      window.document.querySelectorAll(".modal-backdrop").forEach((element) => {
-        element.style.setProperty("display", "none", "important");
-        element.style.setProperty("pointer-events", "none", "important");
-      });
-    };
-
-    neutralizeBackdrops();
-
-    const observer = new MutationObserver(() => {
-      neutralizeBackdrops();
-    });
-
-    observer.observe(window.document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
-
-    return () => observer.disconnect();
-  }, [group]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => {
       setTime(
         new Date().toLocaleTimeString([], {
@@ -5512,37 +5484,38 @@ function AdminUsersSection({ token }) {
 
 function MyBookingsSection({ token, user }) {
   const [activeTab, setActiveTab] = useState("approved");
+  const bookingUserId = user?.userId || user?.id;
 
   const activePanel = {
-    approved: (
-      <ApprovedBookingsPanel
-        apiBaseUrl={API_BASE_URL}
-        token={token}
-        userId={user?.userId}
-      />
-    ),
-    pending: (
-      <PendingBookingsPanel
-        apiBaseUrl={API_BASE_URL}
-        token={token}
-        userId={user?.userId}
-      />
-    ),
-    rejected: (
-      <RejectedBookingsPanelView
-        apiBaseUrl={API_BASE_URL}
-        token={token}
-        userId={user?.userId}
-      />
-    ),
-    cancelled: (
-      <CancelledBookingsPanelView
-        apiBaseUrl={API_BASE_URL}
-        token={token}
-        userId={user?.userId}
-      />
-    ),
-  }[activeTab];
+      approved: (
+        <ApprovedBookingsPanel
+          apiBaseUrl={API_BASE_URL}
+          token={token}
+          userId={bookingUserId}
+        />
+      ),
+      pending: (
+        <PendingBookingsPanel
+          apiBaseUrl={API_BASE_URL}
+          token={token}
+          userId={bookingUserId}
+        />
+      ),
+      rejected: (
+        <RejectedBookingsPanelView
+          apiBaseUrl={API_BASE_URL}
+          token={token}
+          userId={bookingUserId}
+        />
+      ),
+      cancelled: (
+        <CancelledBookingsPanelView
+          apiBaseUrl={API_BASE_URL}
+          token={token}
+          userId={bookingUserId}
+        />
+      ),
+    }[activeTab];
 
   return (
     <div className="book-resource-shell">
@@ -5644,23 +5617,24 @@ function SettingsProfileSection({ user }) {
 }
 
 function BookResourceSection({ token, user }) {
-  const [activeTab, setActiveTab] = useState("type");
-  const activePanel =
-    activeTab === "type" ? (
-      <BookByTypePanel
-        apiBaseUrl={API_BASE_URL}
-        roleName={user?.roleName}
-        token={token}
-        userId={user?.userId}
-      />
-    ) : (
-      <BookByNamePanel
-        apiBaseUrl={API_BASE_URL}
-        token={token}
-        userId={user?.userId}
-        roleName={user?.roleName}
-      />
-    );
+    const [activeTab, setActiveTab] = useState("type");
+    const bookingUserId = user?.userId || user?.id;
+    const activePanel =
+      activeTab === "type" ? (
+        <BookByTypePanel
+          apiBaseUrl={API_BASE_URL}
+          roleName={user?.roleName}
+          token={token}
+          userId={bookingUserId}
+        />
+      ) : (
+        <BookByNamePanel
+          apiBaseUrl={API_BASE_URL}
+          token={token}
+          userId={bookingUserId}
+          roleName={user?.roleName}
+        />
+      );
 
   return (
     <div className="book-resource-shell">

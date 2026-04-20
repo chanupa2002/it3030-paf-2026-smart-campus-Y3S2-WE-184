@@ -151,7 +151,7 @@ public class BookingSlotService {
                 List<CancellableBookingRow> bookings = jdbcTemplate.query(
                                 """
                                                 SELECT
-                                                        rb.booking_group_id,
+                                                        COALESCE(rb.booking_group_id, rb.booking_id) AS booking_group_id,
                                                         rb.booking_id,
                                                         rb.created_at,
                                                         rb.attendees,
@@ -162,8 +162,9 @@ public class BookingSlotService {
                                                         rb.resource_id,
                                                         rb.user_id
                                                 FROM "Resource_booking" rb
-                                                WHERE rb.booking_group_id = ?
+                                                WHERE COALESCE(rb.booking_group_id, rb.booking_id) = ?
                                                   AND rb.user_id = ?
+                                                  AND LOWER(TRIM(COALESCE(rb.status, ''))) = 'pending'
                                                 ORDER BY rb.booking_id ASC
                                                 """,
                                 (rs, rowNum) -> new CancellableBookingRow(
@@ -205,7 +206,7 @@ public class BookingSlotService {
                                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                                         """,
                                         booking.bookingId(),
-                                        booking.bookingGroupId(),
+                                        request.bookingGroupId(),
                                         booking.createdAt(),
                                         booking.attendees(),
                                         booking.date(),
@@ -219,8 +220,9 @@ public class BookingSlotService {
                 int deletedRows = jdbcTemplate.update(
                                 """
                                                 DELETE FROM "Resource_booking"
-                                                WHERE booking_group_id = ?
+                                                WHERE COALESCE(booking_group_id, booking_id) = ?
                                                   AND user_id = ?
+                                                  AND LOWER(TRIM(COALESCE(status, ''))) = 'pending'
                                                 """,
                                 request.bookingGroupId(),
                                 request.userId());

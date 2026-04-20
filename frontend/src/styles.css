@@ -3800,16 +3800,6 @@ input { outline: none; }
   z-index: 120;
 }
 
-.dashboard-technician .modal-backdrop,
-.dashboard-academic .modal-backdrop {
-  display: none !important;
-}
-
-body[data-dashboard-group="technician"] .modal-backdrop,
-body[data-dashboard-group="academic"] .modal-backdrop {
-  display: none !important;
-}
-
 .modal-card {
   position: relative;
   display: grid;

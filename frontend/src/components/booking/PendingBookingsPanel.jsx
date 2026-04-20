@@ -10,11 +10,12 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
   const [notice, setNotice] = useState("");
   const [cancelTarget, setCancelTarget] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const visibleBookings = useMemo(
     () =>
       pendingBookings.filter((booking) => {
-        const matchesUser = !userId || booking.user_id === userId;
+        const matchesUser = !userId || Number(booking.user_id) === Number(userId);
         const matchesDate = !filterDate || booking.date === filterDate;
         return matchesUser && matchesDate;
       }),
@@ -66,12 +67,14 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
     setCancelTarget(target);
     setNotice("");
     setError("");
+    setActionError("");
   };
 
   const cancelBookingGroup = async (bookingGroupId) => {
     console.log("Cancel clicked:", bookingGroupId);
     setNotice("");
     setError("");
+    setActionError("");
     setIsSubmitting(true);
 
     try {
@@ -98,7 +101,7 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
       setNotice(payload?.message || `Booking group #${bookingGroupId} was cancelled successfully.`);
       setCancelTarget(null);
     } catch (requestError) {
-      setNotice(requestError.message || "Unable to cancel this booking group right now.");
+      setActionError(requestError.message || "Unable to cancel this booking group right now.");
     } finally {
       setIsSubmitting(false);
     }
@@ -107,6 +110,7 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
   const closeCancelModal = () => {
     if (isSubmitting) return;
     setCancelTarget(null);
+    setActionError("");
   };
 
   return (
@@ -187,6 +191,7 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
               <p>Date: {formatBookingDate(cancelTarget.date)}</p>
               <p>Slots: {formatIds(cancelTarget.slots)}</p>
             </div>
+            {actionError ? <div className="modal-inline-error">{actionError}</div> : null}
             <div className="modal-actions">
               <button className="modal-secondary-button" disabled={isSubmitting} onClick={closeCancelModal} type="button">
                 Keep Booking
