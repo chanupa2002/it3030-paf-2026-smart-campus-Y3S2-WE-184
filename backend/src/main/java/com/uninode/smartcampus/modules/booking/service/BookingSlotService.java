@@ -189,11 +189,11 @@ public class BookingSlotService {
                 }
 
                 LocalDate bookingDate = bookings.get(0).date();
-                LocalDateTime cancellationDeadline = bookingDate.atStartOfDay().minusHours(48);
+                LocalDateTime cancellationDeadline = bookingDate.atStartOfDay().minusHours(24);
                 if (!LocalDateTime.now().isBefore(cancellationDeadline)) {
                         throw new ResponseStatusException(
                                         HttpStatus.CONFLICT,
-                                        "Cancellation is only allowed more than 48 hours before the booking date.");
+                                        "Cancellation is only allowed more than 24 hours before the booking date.");
                 }
 
                 List<Long> bookingIds = archivePendingBookingsAsCancelled(

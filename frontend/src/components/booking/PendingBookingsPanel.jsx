@@ -159,7 +159,7 @@ export default function PendingBookingsPanel({ apiBaseUrl, token, userId }) {
                 <p>Resource: {booking.resource_name || `Resource #${booking.resource_id ?? "N/A"}`}</p>
                 <p>Slots: {formatIds(booking.slots)}</p>
                 {cancellationLocked ? (
-                  <p>Cancellation is only allowed more than 48 hours before the booking date.</p>
+                  <p>Cancellation is only allowed more than 24 hours before the booking date.</p>
                 ) : null}
                 <button
                   className={`book-by-name-clear ${cancellationLocked ? "book-by-name-clear-disabled" : ""}`}
